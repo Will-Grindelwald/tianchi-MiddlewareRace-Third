@@ -37,7 +37,7 @@
                     </dependency>
                 </dependencies>
                 <configuration>
-                    <finalName>KafkaOnsDemo</finalName>
+                    <finalName>OpenMessagingDemo</finalName>
                     <appendAssemblyId>false</appendAssemblyId>
                     <descriptors>
                         <descriptor>src/main/resources/package.xml</descriptor>
