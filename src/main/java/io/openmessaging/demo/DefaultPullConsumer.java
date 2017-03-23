@@ -47,10 +47,7 @@ public class DefaultPullConsumer implements PullConsumer {
         int checkNum = 0;
         while (++checkNum <= bucketList.size()) {
             String bucket = bucketList.get((++lastIndex) % (bucketList.size()));
-            //需要注意，这里用poll只是为了方便
-            //一个Topic的消息可以被多个Queue读取，各自相互独立，并不会因为一个Message被某个Queue读了就消失了，另一个Queue就读不到了
-
-            Message message = messageStore.pollMessage(queue, bucket);
+            Message message = messageStore.pullMessage(queue, bucket);
             if (message != null) {
                 return message;
             }

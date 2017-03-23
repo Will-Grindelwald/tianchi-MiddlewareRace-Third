@@ -25,7 +25,7 @@ public class MessageStore {
         bucketList.add(message);
     }
 
-   public synchronized Message pollMessage(String queue, String bucket) {
+   public synchronized Message pullMessage(String queue, String bucket) {
         ArrayList<Message> bucketList = messageBuckets.get(bucket);
         if (bucketList == null) {
             return null;
