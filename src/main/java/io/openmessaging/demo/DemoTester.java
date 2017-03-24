@@ -1,5 +1,6 @@
 package io.openmessaging.demo;
 
+import io.openmessaging.KeyValue;
 import io.openmessaging.Message;
 import io.openmessaging.MessageHeader;
 import io.openmessaging.Producer;
@@ -13,9 +14,12 @@ public class DemoTester {
 
 
     public static void main(String[] args) {
+        KeyValue properties = new DefaultKeyValue();
+        properties.put("STORE_PATH", "/home/admin/test"); //实际测试时利用 STORE_PATH 传入存储路径
+
         //这个测试程序的测试逻辑与实际评测相似，但注意这里是单线程的，实际测试时会是多线程的，并且发送完之后会Kill进程，再起消费逻辑
 
-        Producer producer = new DefaultProducer();
+        Producer producer = new DefaultProducer(properties);
 
         //构造测试数据
         String topic1 = "TOPIC1"; //实际测试时大概会有100个Topic左右
@@ -47,7 +51,7 @@ public class DemoTester {
 
         //消费样例1，实际测试时会Kill掉发送进程，另取进程进行消费
         {
-            PullConsumer consumer1 = new DefaultPullConsumer();
+            PullConsumer consumer1 = new DefaultPullConsumer(properties);
             consumer1.attachQueue(queue1, Collections.singletonList(topic1));
 
             int queue1Offset = 0, topic1Offset = 0;
@@ -78,7 +82,7 @@ public class DemoTester {
 
         //消费样例2，实际测试时会Kill掉发送进程，另取进程进行消费
         {
-            PullConsumer consumer2 = new DefaultPullConsumer();
+            PullConsumer consumer2 = new DefaultPullConsumer(properties);
             List<String> topics = new ArrayList<>();
             topics.add(topic1);
             topics.add(topic2);

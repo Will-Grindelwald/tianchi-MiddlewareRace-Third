@@ -12,14 +12,20 @@ import java.util.concurrent.TimeUnit;
 
 public class DefaultPullConsumer implements PullConsumer {
     private MessageStore messageStore = MessageStore.getInstance();
+    private KeyValue properties;
     private String queue;
     private Set<String> buckets = new HashSet<>();
     private List<String> bucketList = new ArrayList<>();
 
     private int lastIndex = 0;
 
+    public DefaultPullConsumer(KeyValue properties) {
+        this.properties = properties;
+    }
+
+
     @Override public KeyValue properties() {
-        throw new UnsupportedOperationException("Unsupported");
+        return properties;
     }
 
     @Override public Message pull() {

@@ -12,6 +12,13 @@ public class DefaultProducer  implements Producer {
     private MessageFactory messageFactory = new DefaultMessageFactory();
     private MessageStore messageStore = MessageStore.getInstance();
 
+    private KeyValue properties;
+
+    public DefaultProducer(KeyValue properties) {
+        this.properties = properties;
+    }
+
+
     @Override public BytesMessage createBytesMessageToTopic(String topic, byte[] body) {
         return messageFactory.createBytesMessageToTopic(topic, body);
     }
@@ -29,7 +36,7 @@ public class DefaultProducer  implements Producer {
     }
 
     @Override public KeyValue properties() {
-        return null;
+        return properties;
     }
 
     @Override public void send(Message message) {
