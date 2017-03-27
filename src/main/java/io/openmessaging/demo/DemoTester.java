@@ -58,7 +58,7 @@ public class DemoTester {
 
             long startConsumer = System.currentTimeMillis();
             while (true) {
-                Message message = consumer1.pullNoWait();
+                Message message = consumer1.poll();
                 if (message == null) {
                     //拉取为null则认为消息已经拉取完毕
                     break;
@@ -92,7 +92,7 @@ public class DemoTester {
 
             long startConsumer = System.currentTimeMillis();
             while (true) {
-                Message message = consumer2.pullNoWait();
+                Message message = consumer2.poll();
                 if (message == null) {
                     //拉取为null则认为消息已经拉取完毕
                     break;

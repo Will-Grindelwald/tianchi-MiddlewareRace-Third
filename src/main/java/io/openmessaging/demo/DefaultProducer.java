@@ -1,5 +1,6 @@
 package io.openmessaging.demo;
 
+import io.openmessaging.BatchToPartition;
 import io.openmessaging.BytesMessage;
 import io.openmessaging.KeyValue;
 import io.openmessaging.Message;
@@ -67,6 +68,14 @@ public class DefaultProducer  implements Producer {
     }
 
     @Override public void sendOneway(Message message, KeyValue properties) {
+        throw new UnsupportedOperationException("Unsupported");
+    }
+
+    @Override public BatchToPartition createBatchToPartition(String partitionName) {
+        throw new UnsupportedOperationException("Unsupported");
+    }
+
+    @Override public BatchToPartition createBatchToPartition(String partitionName, KeyValue properties) {
         throw new UnsupportedOperationException("Unsupported");
     }
 }

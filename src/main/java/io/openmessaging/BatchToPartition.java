@@ -18,23 +18,14 @@
 package io.openmessaging;
 
 /**
- * The message listener interface. A message listener must implement this {@code MessageListener} interface and register
- * itself to a consumer instance to asynchronously receive messages.
- *
  * @author vintagewang@apache.org
- * @author yukon@apache.org
- *
- * @version OMS 1.0
- * @since OMS 1.0
  */
-public interface MessageListener {
-    /**
-     * Callback method to receive incoming messages.
-     * <p>
-     * A message listener should handle different types of {@code Message}.
-     *
-     * @param message the received Message object
-     * @param context the context delivered to the consume thread
-     */
-    void onMessage(Message message, OnMessageContext context);
+public interface BatchToPartition {
+    void send(BytesMessage message);
+
+    void send(BytesMessage message, KeyValue properties);
+
+    void commit();
+
+    void rollback();
 }
