@@ -50,6 +50,8 @@ public class DemoTester {
 
         long T1 = end - start;
 
+        //请保证数据写入磁盘中
+
         //消费样例1，实际测试时会Kill掉发送进程，另取进程进行消费
         {
             PullConsumer consumer1 = new DefaultPullConsumer(properties);
