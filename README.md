@@ -46,9 +46,9 @@
 
 ## 5. 程序校验逻辑
 
-1. 10~20个线程各自独立调用Producer发送消息(每个线程启动一个Producer，每条消息随机发送到某个Topic或者Queue)，持续时间**T1**，请注意把消息数据写入磁盘中
+1. 10~20个线程(位于同一进程中)各自独立调用Producer发送消息(每个线程启动一个Producer，每条消息随机发送到某个Topic或者Queue)，持续时间**T1**，请注意把消息数据写入磁盘中
 2. 强行kill Producer进程，未写入磁盘的消息都会丢失
-3. 10~20个线程独立调用Consumer收取消息(每个线程启动一个Consumer，attach到指定的Queue，不同的Consumer不会attach同一个Queue），验证消息顺序准确性，可靠性，消费持续的时间为**T2**，消费到的总消息数目为**N**
+3. 10~20个线程(位于同一进程中)独立调用Consumer收取消息(每个线程启动一个Consumer，attach到指定的Queue，不同的Consumer不会attach同一个Queue），验证消息顺序准确性，可靠性，消费持续的时间为**T2**，消费到的总消息数目为**N**
 4. 以**N/(t1+t2)**来衡量性能
 
     PS：请仔细阅读本仓库内Demo代码，尤其是DemoTester
