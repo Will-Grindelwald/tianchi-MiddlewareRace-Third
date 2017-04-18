@@ -27,7 +27,7 @@
  * Producer的createBytesMessageToQueue(queue, body)
  * Producer的send(message)
  * PullConsumer的attachQueue(queue, topics)
- * PullConsumer的pullNoWait()
+ * PullConsumer的poll()
 
 实现类名字分别叫做:DefaultProducer,DefaultPullConsumer，包名均是：io.messaging.demo
 请参考demo目录，建议是名字不要改，修改实现内容即可
