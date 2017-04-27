@@ -28,8 +28,8 @@ public class DemoTester {
         //构造测试数据
         String topic1 = "TOPIC1"; //实际测试时大概会有100个Topic左右
         String topic2 = "TOPIC2"; //实际测试时大概会有100个Topic左右
-        String queue1 = "QUEUE1"; //实际测试时大概会有100个Queue左右
-        String queue2 = "QUEUE2"; //实际测试时大概会有100个Queue左右
+        String queue1 = "QUEUE1"; //实际测试时，queue数目与消费线程数目相同
+        String queue2 = "QUEUE2"; //实际测试时，queue数目与消费线程数目相同
         List<Message> messagesForTopic1 = new ArrayList<>(1024);
         List<Message> messagesForTopic2 = new ArrayList<>(1024);
         List<Message> messagesForQueue1 = new ArrayList<>(1024);
