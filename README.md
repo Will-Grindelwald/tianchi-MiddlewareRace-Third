@@ -29,7 +29,7 @@
  * PullConsumer的attachQueue(queue, topics)
  * PullConsumer的poll()
 
-实现类名字分别叫做:DefaultProducer,DefaultPullConsumer，包名均是：io.messaging.demo
+实现类名字分别叫做:DefaultProducer,DefaultPullConsumer包名均是：io.openmessaging.demo
 请参考demo目录，建议是名字不要改，修改实现内容即可
 注意，消息内容需要存入磁盘中，并能再次读取出来
 
@@ -43,7 +43,69 @@
 
 
 ## 4. 测试环境描述
-测试环境为相同的4核虚拟机(暂定)。限定使用的最大JVM大小为4GB(-Xmx4g)，磁盘使用不做限制。
+测试环境为相同的4核虚拟机(暂定)。
+1. 机器4核CPU，4G内存；
+2. 发送和消费进程的JVM：-Xms2560M -Xmx2560M
+3. 本地编译(mvn clean package -U assembly:assembly -Dmaven.test.skip=true),测评程序拷jar的命令为：cp code/target/*.jar code/target/OpenMessagingDemo/OpenMessagingDemo/lib、*.jar $tmplib, 请确保自己的target下有对应目录，以免jar包没拷贝到，而找不到对应的类
+
+4. 系统限制
+
+```
+$ulimit -a
+core file size          (blocks, -c) 0
+data seg size           (kbytes, -d) unlimited
+scheduling priority             (-e) 0
+file size               (blocks, -f) unlimited
+pending signals                 (-i) 31546
+max locked memory       (kbytes, -l) 64
+max memory size         (kbytes, -m) unlimited
+open files                      (-n) 65535
+pipe size            (512 bytes, -p) 8
+POSIX message queues     (bytes, -q) 819200
+real-time priority              (-r) 0
+stack size              (kbytes, -s) 10240
+cpu time               (seconds, -t) unlimited
+max user processes              (-u) 31546
+virtual memory          (kbytes, -v) unlimited
+file locks                      (-x) unlimited
+```
+
+5. 磁盘信息
+
+```
+$sudo fdisk -l /dev/vda
+
+Disk /dev/vda: 268.4 GB, 268435456000 bytes
+255 heads, 63 sectors/track, 32635 cylinders
+Units = cylinders of 16065 * 512 = 8225280 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disk identifier: 0x000380f4
+
+   Device Boot      Start         End      Blocks   Id  System
+/dev/vda1   *           1       32636   262142976   83  Linux
+```
+
+6. 磁盘读写速度(供参考)
+
+```
+写速度
+$sudo  time dd if=/dev/zero of=/home/admin/test  bs=1k count=1000000
+1000000+0 records in
+1000000+0 records out
+1024000000 bytes (1.0 GB) copied, 10.2137 s, 100 MB/s
+0.17user 5.65system 0:10.43elapsed 55%CPU (0avgtext+0avgdata 3776maxresident)k
+56inputs+2000000outputs (0major+363minor)pagefaults 0swaps
+读速度
+$sudo time dd if=/dev/vda  of=/dev/null bs=1k count=1000000
+1000000+0 records in
+1000000+0 records out
+1024000000 bytes (1.0 GB) copied, 24.9769 s, 41.0 MB/s
+0.09user 2.16system 0:24.98elapsed 9%CPU (0avgtext+0avgdata 3776maxresident)k
+2000272inputs+0outputs (0major+362minor)pagefaults 0swaps
+```
+
+
 
 ## 5. 程序校验逻辑
 
