@@ -20,11 +20,13 @@ public class DefaultProducer  implements Producer {
     }
 
 
-    @Override public BytesMessage createBytesMessageToTopic(String topic, byte[] body) {
+    @Override 
+    public BytesMessage createBytesMessageToTopic(String topic, byte[] body) {
         return messageFactory.createBytesMessageToTopic(topic, body);
     }
 
-    @Override public BytesMessage createBytesMessageToQueue(String queue, byte[] body) {
+    @Override 
+    public BytesMessage createBytesMessageToQueue(String queue, byte[] body) {
         return messageFactory.createBytesMessageToQueue(queue, body);
     }
 
@@ -40,18 +42,22 @@ public class DefaultProducer  implements Producer {
         return properties;
     }
 
-    @Override public void send(Message message) {
+    @Override 
+    public void send(Message message) {
         if (message == null) throw new ClientOMSException("Message should not be null");
         String topic = message.headers().getString(MessageHeader.TOPIC);
         String queue = message.headers().getString(MessageHeader.QUEUE);
         if ((topic == null && queue == null) || (topic != null && queue != null)) {
             throw new ClientOMSException(String.format("Queue:%s Topic:%s should put one and only one", true, queue));
         }
-
-        messageStore.putMessage(topic != null ? topic : queue, message);
+       String path=properties().getString("STORE_PATH");
+       // String file=
+        messageStore.putMessage(topic != null ? topic : queue, message,path);
+        
     }
 
-    @Override public void send(Message message, KeyValue properties) {
+    @Override
+    public void send(Message message, KeyValue properties) {
         throw new UnsupportedOperationException("Unsupported");
     }
 

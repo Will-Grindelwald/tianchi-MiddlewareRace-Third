@@ -1,10 +1,12 @@
 package io.openmessaging.demo;
 
+import java.io.Serializable;
+
 import io.openmessaging.BytesMessage;
 import io.openmessaging.KeyValue;
 import io.openmessaging.Message;
 
-public class DefaultBytesMessage implements BytesMessage {
+public class DefaultBytesMessage implements BytesMessage,Serializable {
 
     private KeyValue headers = new DefaultKeyValue();
     private KeyValue properties;
@@ -13,16 +15,19 @@ public class DefaultBytesMessage implements BytesMessage {
     public DefaultBytesMessage(byte[] body) {
         this.body = body;
     }
-    @Override public byte[] getBody() {
+    @Override 
+    public byte[] getBody() {
         return body;
     }
 
-    @Override public BytesMessage setBody(byte[] body) {
+    @Override 
+    public BytesMessage setBody(byte[] body) {
         this.body = body;
         return this;
     }
 
-    @Override public KeyValue headers() {
+    @Override
+    public KeyValue headers() {
         return headers;
     }
 
@@ -73,4 +78,8 @@ public class DefaultBytesMessage implements BytesMessage {
         properties.put(key, value);
         return this;
     }
+//    @Override
+//    public String toString(){
+//    	return "headers:"+headers().toString()+"properties:"+properties().toString()+"body:"+getBody();
+//    }
 }
