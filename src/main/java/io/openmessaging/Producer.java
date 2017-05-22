@@ -128,4 +128,11 @@ public interface Producer extends MessageFactory, ServiceLifecycle {
     BatchToPartition createBatchToPartition(String partitionName);
 
     BatchToPartition createBatchToPartition(String partitionName, KeyValue properties);
+
+    /**
+     * 为比赛新增的flush接口，评测线程会最后调用该接口；
+     * 选手在接口里应该把缓存中的数据写入磁盘或者pagecache
+     * 在规定时间内，该接口没有返回，producer会被强制杀掉，可能会有数据丢失，从而导致数据不正确；
+     */
+    void flush();
 }
