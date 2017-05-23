@@ -1,12 +1,10 @@
 package io.openmessaging.demo;
 
-import java.io.Serializable;
-
 import io.openmessaging.BytesMessage;
 import io.openmessaging.KeyValue;
 import io.openmessaging.Message;
 
-public class DefaultBytesMessage implements BytesMessage, Serializable {
+public class DefaultBytesMessage implements BytesMessage {
 
 	private KeyValue headers = new DefaultKeyValue();
 	private KeyValue properties;
@@ -92,11 +90,5 @@ public class DefaultBytesMessage implements BytesMessage, Serializable {
 		properties.put(key, value);
 		return this;
 	}
-
-	// @Override
-	// public String toString(){
-	// return
-	// "headers:"+headers().toString()+"properties:"+properties().toString()+"body:"+getBody();
-	// }
 
 }

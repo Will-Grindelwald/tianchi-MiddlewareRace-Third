@@ -11,8 +11,8 @@ import io.openmessaging.Message;
 import io.openmessaging.PullConsumer;
 
 public class DefaultPullConsumer implements PullConsumer {
-	private MessageStore messageStore = MessageStore.getInstance();
 	private KeyValue properties;
+	private MessageStore messageStore = new MessageStore();
 	private String queue;
 	private Set<String> buckets = new HashSet<>();
 	private List<String> bucketList = new ArrayList<>();
@@ -29,20 +29,20 @@ public class DefaultPullConsumer implements PullConsumer {
 	}
 
 	@Override
-	public synchronized Message poll() {
-		if (buckets.size() == 0 || queue == null) {
-			return null;
-		}
-		// use Round Robin
-		int checkNum = 0;
-		while (++checkNum <= bucketList.size()) {
-			String bucket = bucketList.get((++lastIndex) % (bucketList.size()));
-			String path = properties().getString("STORE_PATH");
-			Message message = messageStore.pullMessage(queue, bucket, path);
-			if (message != null) {
-				return message;
-			}
-		}
+	public Message poll() {
+		// if (bucketList.size() == 0 || queue == null) {
+		// return null;
+		// }
+		// // use Round Robin
+		// int checkNum = 0;
+		// while (++checkNum <= bucketList.size()) {
+		// String bucket = bucketList.get((++lastIndex) % (bucketList.size()));
+		// String path = properties().getString("STORE_PATH");
+		// Message message = messageStore.pullMessage(queue, bucket, path);
+		// if (message != null) {
+		// return message;
+		// }
+		// }
 		return null;
 	}
 

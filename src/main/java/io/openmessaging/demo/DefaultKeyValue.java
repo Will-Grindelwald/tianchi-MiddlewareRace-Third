@@ -1,13 +1,12 @@
 package io.openmessaging.demo;
 
-import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
 import io.openmessaging.KeyValue;
 
-public class DefaultKeyValue implements KeyValue, Serializable {
+public class DefaultKeyValue implements KeyValue {
 
 	private final Map<String, Object> kvs = new HashMap<>();
 
@@ -65,8 +64,4 @@ public class DefaultKeyValue implements KeyValue, Serializable {
 		return kvs.containsKey(key);
 	}
 
-	@Override
-	public String toString() {
-		return kvs.toString();
-	}
 }

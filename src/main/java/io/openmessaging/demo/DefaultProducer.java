@@ -5,13 +5,12 @@ import io.openmessaging.BytesMessage;
 import io.openmessaging.KeyValue;
 import io.openmessaging.Message;
 import io.openmessaging.MessageFactory;
-import io.openmessaging.MessageHeader;
 import io.openmessaging.Producer;
 import io.openmessaging.Promise;
 
 public class DefaultProducer implements Producer {
 	private MessageFactory messageFactory = new DefaultMessageFactory();
-	private MessageStore messageStore = MessageStore.getInstance();
+	private MessageStore messageStore = new MessageStore();
 
 	private KeyValue properties;
 
@@ -46,16 +45,19 @@ public class DefaultProducer implements Producer {
 
 	@Override
 	public void send(Message message) {
-		if (message == null)
-			throw new ClientOMSException("Message should not be null");
-		String topic = message.headers().getString(MessageHeader.TOPIC);
-		String queue = message.headers().getString(MessageHeader.QUEUE);
-		if ((topic == null && queue == null) || (topic != null && queue != null)) {
-			throw new ClientOMSException(String.format("Queue:%s Topic:%s should put one and only one", true, queue));
-		}
-		String path = properties().getString("STORE_PATH");
-		// String file=
-		messageStore.putMessage(topic != null ? topic : queue, message, path);
+		// if (message == null)
+		// throw new ClientOMSException("Message should not be null");
+		// String topic = message.headers().getString(MessageHeader.TOPIC);
+		// String queue = message.headers().getString(MessageHeader.QUEUE);
+		// if ((topic == null && queue == null) || (topic != null && queue !=
+		// null)) {
+		// throw new ClientOMSException(String.format("Queue:%s Topic:%s should
+		// put one and only one", true, queue));
+		// }
+		// String path = properties().getString("STORE_PATH");
+		// // String file=
+		// messageStore.putMessage(topic != null ? topic : queue, message,
+		// path);
 
 	}
 
