@@ -8,10 +8,10 @@ public class CommitLogHandler {
 	private CommitLogHandler() {
 	}
 
-	public static CommitLog getCommitLogByName(String name) {
+	public static CommitLog getCommitLogByName(String path, String name) {
 		if (handler.containsKey(name)) {
 			return handler.get(name);
 		}
-		return handler.put(name, new CommitLog());
+		return handler.put(name, new CommitLog(path + "/" + name));
 	}
 }

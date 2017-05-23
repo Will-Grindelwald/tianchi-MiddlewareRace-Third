@@ -16,9 +16,12 @@ public class DefaultPullConsumer implements PullConsumer {
 	private MessageStore messageStore;
 
 	private String queue;
-	private Set<String> buckets = new HashSet<>(); // 存 queue name & topic name, set 去重
-	private List<String> bucketList = new ArrayList<>(); // 内容同 buckets, list 随机读
-	private HashMap<String, Long> offsets = new HashMap<>(); // 存 <bucket name, offset>
+	// 存 queue name & topic name, set 去重
+	private Set<String> buckets = new HashSet<>();
+	// 内容同 buckets, list 随机读
+	private List<String> bucketList = new ArrayList<>();
+	// 存 <bucket name, offset>
+	private HashMap<String, Long> offsets = new HashMap<>();
 
 	private int lastIndex = 0;
 

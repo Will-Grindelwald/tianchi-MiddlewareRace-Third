@@ -3,7 +3,6 @@ package io.openmessaging.demo;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
-import java.nio.ByteBuffer;
 
 import io.openmessaging.Message;
 
@@ -27,7 +26,7 @@ public class MessageStore {
 		// }
 		// ArrayList<Message> bucketList = messageBuckets.get(bucket);
 		// bucketList.add(message);
-		CommitLog cl=CommitLogHandler.getCommitLogByName(bucket);
+		CommitLog cl=CommitLogHandler.getCommitLogByName(path, bucket);
 		
 		
 		
@@ -110,10 +109,8 @@ public class MessageStore {
 	// }
 
 	public Message pullMessage(String bucket, long offset) {
-		CommitLog commitLog = CommitLogHandler.getCommitLogByName(bucket);
-		if (commitLog.hasNewMessage(offset)) {
-
-		}
+		CommitLog commitLog = CommitLogHandler.getCommitLogByName(path, bucket);
+		return commitLog.getNewMessage(offset);
 
 		// if (!flag) {
 		// flag = true;
@@ -136,6 +133,5 @@ public class MessageStore {
 		// offsetMap.put(bucket, ++offset);
 		// // System.out.println(message.toString());
 		// return message;
-		return null;
 	}
 }

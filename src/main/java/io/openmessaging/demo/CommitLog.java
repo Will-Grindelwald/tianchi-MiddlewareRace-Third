@@ -1,14 +1,31 @@
 package io.openmessaging.demo;
 
+import java.io.File;
 import java.util.concurrent.CopyOnWriteArrayList;
+
+import io.openmessaging.Message;
 
 public class CommitLog {
 
+	private String path;
+	private static final long LOG_FILE_SIZE = 100 * 1024 * 1024;
+
 	private IndexFile indexFile;
+	private CopyOnWriteArrayList<LogFile> logFileList = new CopyOnWriteArrayList<>();
 
-	private long logFileSize;
-
-	private CopyOnWriteArrayList<LogFile> logFileList;
+	public CommitLog(String path) {
+		this.path = path;
+		File file = new File(path);
+		if (file.exists()) {
+			if (!file.isDirectory()) {
+				throw new ClientOMSException(path + " 不是一个目录");
+			}
+		} else {
+			file.mkdirs();
+		}
+		indexFile = new IndexFile(path);
+		// logFileList = new LogFile(path, LOG_FILE_SIZE);
+	}
 
 	public void getLastLogFile() {
 
@@ -22,7 +39,7 @@ public class CommitLog {
 
 	}
 
-	public void fulsh() {
+	public void flush() {
 
 	}
 
@@ -34,8 +51,8 @@ public class CommitLog {
 
 	}
 
-	public boolean hasNewMessage(long offset) {
-		
-		return false;
+	public Message getNewMessage(long offset) {
+
+		return null;
 	}
 }
