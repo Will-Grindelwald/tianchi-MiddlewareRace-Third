@@ -11,7 +11,9 @@ public class MessageStore {
 	// private boolean flag = false;
 
 	private String path;
-
+	public MessageStore(String path){
+		this.path=path;
+	}
 	public void putMessage(String bucket, Message message) {
 		// if (!messageBuckets.containsKey(bucket)) {
 		// messageBuckets.put(bucket, new ArrayList<>(1024));
