@@ -10,10 +10,14 @@ public class CommitLog {
 
 	private CopyOnWriteArrayList<LogFile> logFileList;
 
-	public void getLastLogFile() {
-
+	public IndexFile getLastLogFile() {
+		IndexFile indexFile=null;
+		while(this.indexFile!=null){
+			
+		}
+		return indexFile;
 	}
-
+	
 	public void getNewLogFile() {
 
 	}
@@ -37,5 +41,9 @@ public class CommitLog {
 	public boolean hasNewMessage(long offset) {
 		
 		return false;
+	}
+	
+	public IndexFile getIndexFile(){
+		return indexFile;
 	}
 }
