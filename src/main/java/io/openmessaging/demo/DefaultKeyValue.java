@@ -9,6 +9,10 @@ import io.openmessaging.KeyValue;
 public class DefaultKeyValue implements KeyValue {
 
 	private final Map<String, Object> kvs = new HashMap<>();
+	
+	public Map<String,Object> getKVS(){
+		return kvs;
+	}
 
 	@Override
 	public KeyValue put(String key, int value) {

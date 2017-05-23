@@ -1,5 +1,10 @@
 package io.openmessaging.demo;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.nio.ByteBuffer;
+
 import io.openmessaging.Message;
 
 public class MessageStore {
@@ -20,6 +25,26 @@ public class MessageStore {
 		// }
 		// ArrayList<Message> bucketList = messageBuckets.get(bucket);
 		// bucketList.add(message);
+		CommitLog cl=CommitLogHandler.getCommitLogByName(bucket);
+		
+		
+		
+	}
+	public byte[] getObjectBytes(DefaultKeyValue kv){
+		ByteArrayOutputStream bout=new ByteArrayOutputStream();
+		try {
+			ObjectOutputStream out=new ObjectOutputStream(bout);
+			out.writeObject(kv);
+			out.flush();
+			byte[] bytes=bout.toByteArray();
+			bout.close();
+			out.close();
+			return bytes;
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
 	}
 
 	// public void writeMessage(String path) {
