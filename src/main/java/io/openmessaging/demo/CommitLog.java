@@ -8,7 +8,7 @@ public class CommitLog {
 
 	private long logFileSize;
 
-	private CopyOnWriteArrayList<LogFile> logFilList;
+	private CopyOnWriteArrayList<LogFile> logFileList;
 
 	public void getLastLogFile() {
 
@@ -19,7 +19,7 @@ public class CommitLog {
 	}
 
 	public void appendMessage() {
-		
+
 	}
 
 	public void fulsh() {
@@ -34,7 +34,8 @@ public class CommitLog {
 
 	}
 
-	public void hasNewMessage() {
-
+	public boolean hasNewMessage(long offset) {
+		
+		return false;
 	}
 }

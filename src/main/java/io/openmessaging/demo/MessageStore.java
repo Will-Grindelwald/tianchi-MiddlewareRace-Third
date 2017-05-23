@@ -16,9 +16,11 @@ public class MessageStore {
 	// private boolean flag = false;
 
 	private String path;
-	public MessageStore(String path){
-		this.path=path;
+
+	public MessageStore(String path) {
+		this.path = path;
 	}
+
 	public void putMessage(String bucket, Message message) {
 		// if (!messageBuckets.containsKey(bucket)) {
 		// messageBuckets.put(bucket, new ArrayList<>(1024));
@@ -107,7 +109,11 @@ public class MessageStore {
 	// }
 	// }
 
-	public Message pullMessage(String queue, String bucket, String path) {
+	public Message pullMessage(String bucket, long offset) {
+		CommitLog commitLog = CommitLogHandler.getCommitLogByName(bucket);
+		if (commitLog.hasNewMessage(offset)) {
+
+		}
 
 		// if (!flag) {
 		// flag = true;
