@@ -53,7 +53,11 @@ public class CommitLog {
 
 	public Message getNewMessage(long offset) {
 		byte[] index = indexFile.readIndexByOffset(offset);
-		
+
 		return null;
+	}
+
+	public IndexFile getIndexFile() {
+		return indexFile;
 	}
 }

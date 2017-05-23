@@ -3,6 +3,7 @@ package io.openmessaging.demo;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.nio.ByteBuffer;
 
 import io.openmessaging.Message;
 
@@ -27,15 +28,21 @@ public class MessageStore {
 		// ArrayList<Message> bucketList = messageBuckets.get(bucket);
 		// bucketList.add(message);
 		CommitLog cl=CommitLogHandler.getCommitLogByName(path, bucket);
+		ByteBuffer indexBuffer=ByteBuffer.allocate(1024*1024);
+		//TODO 写入到索引文件
+		//indexBuffer.put()
+		cl.getIndexFile().writeIndexFile();//写入
 		
+		//TODO 分字段写入：headers,propersites,body等
+//		ByteBuffer bb=ByteBuffer.wrap(getObjectBytes(((DefaultKeyValue)(message.headers()))));
 		
-		
+
 	}
 	public byte[] getObjectBytes(DefaultKeyValue kv){
 		ByteArrayOutputStream bout=new ByteArrayOutputStream();
 		try {
 			ObjectOutputStream out=new ObjectOutputStream(bout);
-			out.writeObject(kv);
+			out.writeObject(kv.getKVS());
 			out.flush();
 			byte[] bytes=bout.toByteArray();
 			bout.close();
