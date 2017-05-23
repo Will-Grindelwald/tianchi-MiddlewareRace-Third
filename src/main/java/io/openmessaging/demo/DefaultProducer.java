@@ -10,13 +10,12 @@ import io.openmessaging.Promise;
 
 public class DefaultProducer implements Producer {
 	private MessageFactory messageFactory = new DefaultMessageFactory();
-	private String path="";
-	private MessageStore messageStore = new MessageStore(path);
+	private MessageStore messageStore;
 	private KeyValue properties;
 
 	public DefaultProducer(KeyValue properties) {
 		this.properties = properties;
-		this.path=this.properties.getString("STORE_PATH");
+		messageStore = new MessageStore(properties.getString("STORE_PATH"));
 	}
 
 	@Override
@@ -46,7 +45,7 @@ public class DefaultProducer implements Producer {
 
 	@Override
 	public void send(Message message) {
-		
+
 		// if (message == null)
 		// throw new ClientOMSException("Message should not be null");
 		// String topic = message.headers().getString(MessageHeader.TOPIC);

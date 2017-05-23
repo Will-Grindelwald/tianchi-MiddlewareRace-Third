@@ -12,18 +12,17 @@ import io.openmessaging.PullConsumer;
 
 public class DefaultPullConsumer implements PullConsumer {
 	private KeyValue properties;
-	private String path;
-	private MessageStore messageStore = new MessageStore(path);
+	private MessageStore messageStore;
 	private String queue;
-	
+
 	private Set<String> buckets = new HashSet<>();
 	private List<String> bucketList = new ArrayList<>();
 
 	private int lastIndex = 0;
 
 	public DefaultPullConsumer(KeyValue properties) {
-		this.properties = properties;		
-		this.path=this.properties.getString("STORE_PATH");
+		this.properties = properties;
+		messageStore = new MessageStore(properties.getString("STORE_PATH"));
 	}
 
 	@Override
