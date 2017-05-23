@@ -56,8 +56,7 @@ public class DefaultProducer implements Producer {
 		// }
 		// String path = properties().getString("STORE_PATH");
 		// // String file=
-		// messageStore.putMessage(topic != null ? topic : queue, message,
-		// path);
+		// messageStore.putMessage(topic != null ? topic : queue, message);
 
 	}
 
@@ -98,6 +97,7 @@ public class DefaultProducer implements Producer {
 
 	@Override
 	public void flush() {
-
+		// String path = properties().getString("STORE_PATH");
+		// messageStore.writeMessage(path);
 	}
 }
