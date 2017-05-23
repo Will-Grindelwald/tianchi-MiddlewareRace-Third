@@ -34,7 +34,8 @@ public class CommitLog {
 
 	}
 
-	public void hasNewMessage() {
-
+	public boolean hasNewMessage(long offset) {
+		
+		return false;
 	}
 }
