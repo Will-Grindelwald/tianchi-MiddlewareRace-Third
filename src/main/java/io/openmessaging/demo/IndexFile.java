@@ -1,6 +1,7 @@
 package io.openmessaging.demo;
 
 import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.concurrent.locks.ReentrantLock;
@@ -12,14 +13,18 @@ public class IndexFile {
 	 * 索引文件结构：
 	 * ----------------------------
 	 * |fileName|offset|mesagesize|
+	 * |LOG000000|long |int       |
 	 * ----------------------------
 	 */
 	private String fileName; 
-	private Long offset;
-	private Long messageSize;
+	private long offset;
+	private int messageSize;
+	
+	private static final int ONEINDEXSIZE=30*1024;
+	private static final String NAMEFIRST="LOG";
 	
 	private MappedByteBuffer mappedByteBuffer;
-	
+	private ByteBuffer byteBuffer=ByteBuffer.allocate(ONEINDEXSIZE);
 
 	private RandomAccessFile indexFile;
 	private FileChannel fileChannel;
@@ -32,9 +37,18 @@ public class IndexFile {
 
 	public void appendIndex(int size){
 			fileWriteLock.lock();
-//			if
 			
 			
+			if(byteBuffer.remaining()==ONEINDEXSIZE){
+				fileName=NAMEFIRST+"000000";
+				offset=0L;
+			}
+			else{
+				
+			}
+			byteBuffer.put(fileName.getBytes());
+			byteBuffer.putLong(offset);
+			byteBuffer.putInt(size);
 			fileWriteLock.unlock();
 	}
 
