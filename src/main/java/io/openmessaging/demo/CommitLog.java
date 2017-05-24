@@ -47,6 +47,7 @@ public class CommitLog {
 
 	}
 
+	// TODO 考虑用 nio 的 Scatter/Gather 重构 写 indexFile 写 LogFile
 	public void appendMessage(byte[] messages) {
 		int size = messages.length;
 		String afterIndex = indexFile.appendIndex(size);

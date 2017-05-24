@@ -13,6 +13,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * |000000|int   |int       |
  * --------------------------
  */
+// TODO 将 offset 改为 int
 public class IndexFile extends MappedFile {
 	// 一个读写锁???
 	private ReentrantLock fileWriteLock = new ReentrantLock();

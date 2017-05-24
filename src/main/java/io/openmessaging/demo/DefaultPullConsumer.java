@@ -1,7 +1,5 @@
 package io.openmessaging.demo;
 
-import java.io.IOException;
-import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -27,8 +25,8 @@ public class DefaultPullConsumer implements PullConsumer {
 	private HashMap<String, Long> offsets = new HashMap<>();
 
 	private static final int BUFFER_SIZE = 20 * 1024 * 1024;
-	private MappedByteBuffer readIndexFileBuffer = null;
-	private MappedByteBuffer readLogFileBuffer = null;
+	private ReadBuffer readIndexFileBuffer = null;
+	private ReadBuffer readLogFileBuffer = null;
 
 	private int lastIndex = 0;
 
@@ -67,21 +65,22 @@ public class DefaultPullConsumer implements PullConsumer {
 		return null;
 	}
 
-	public Message getNewMessage(String bucket, long offsetInIndexFile) {
+	// 跨过 messageStore, 利用 MappedBuffer 直接读 message
+	private Message getNewMessage(String bucket, long offsetInIndexFile) {
+		// TODO
 		// 第一次
 		if (readIndexFileBuffer == null) {
 			FileChannel indexFileChannel = messageStore.getIndexFileChannel(bucket);
-			try {
-				readIndexFileBuffer = indexFileChannel.map(FileChannel.MapMode.READ_WRITE, 0,
-						BUFFER_SIZE < indexFileChannel.size() ? BUFFER_SIZE : indexFileChannel.size());
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+			readIndexFileBuffer = new ReadBuffer(indexFileChannel, BUFFER_SIZE);
+			// TODO 测试 load 与 不 load 谁快
+			// readIndexFileBuffer.buffer.load();
+
 		}
+		// readIndexFileBuffer 缓存不命中
+		// if()
 
-		// 缓存不命中
-
-		// 缓存命中
+		// readIndexFileBuffer 缓存命中
+		// readIndexFileBuffer.
 
 		return messageStore.pullMessage(bucket, offsetInIndexFile);
 	}
@@ -113,7 +112,7 @@ public class DefaultPullConsumer implements PullConsumer {
 		bucketList.addAll(buckets);
 		// TODO 待测试
 		// 1. do nothing
-		// 2. 排序, 提高 page cache 命中
+		// 2. 排序, 提高 page cache 命中 <-- 目测它最快
 		// bucketList.sort(null);
 		// 3. 打乱顺序, 减少集中读一个 topic, 提高并发
 		// Collections.shuffle(bucketList);
