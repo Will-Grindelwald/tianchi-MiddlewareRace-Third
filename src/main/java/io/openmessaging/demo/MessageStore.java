@@ -29,13 +29,14 @@ public class MessageStore {
 		// }
 		// ArrayList<Message> bucketList = messageBuckets.get(bucket);
 		// bucketList.add(message);
-		CommitLog cl=CommitLogHandler.getCommitLogByName(path, bucket);
-		byte[] messages=messageToBytes(message);
+		CommitLog cl = CommitLogHandler.getCommitLogByName(path, bucket);
+		byte[] messages = messageToBytes(message);
 
 		cl.appendMessage(messages);
-				
-		//TODO 分字段写入：headers,propersites,body等
-//		ByteBuffer bb=ByteBuffer.wrap(getObjectBytes(((DefaultKeyValue)(message.headers()))));
+
+		// TODO 分字段写入：headers,propersites,body等
+		// ByteBuffer
+		// bb=ByteBuffer.wrap(getObjectBytes(((DefaultKeyValue)(message.headers()))));
 
 	}
 
@@ -65,7 +66,7 @@ public class MessageStore {
 	}
 
 	public Message bytesToMessage(byte[] bytes) {
-		// TODO 添加数据压缩
+		// TODO 添加数据解压缩
 		return null;
 	}
 

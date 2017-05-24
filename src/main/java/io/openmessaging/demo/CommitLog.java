@@ -14,7 +14,6 @@ public class CommitLog {
 	private IndexFile indexFile = null;
 	private CopyOnWriteArrayList<LogFile> logFileList = new CopyOnWriteArrayList<>();
 
-	
 	public CommitLog(String path) {
 		this.path = path;
 		File file = new File(path);
@@ -45,14 +44,14 @@ public class CommitLog {
 	}
 
 	public void appendMessage(byte[] messages) {
-		int size=messages.length;
-		String afterIndex=indexFile.appendIndex(size);
-		String[] split=afterIndex.split(":");
-		String logName=split[0];
-		long offset=Long.valueOf(split[1]);
-//		if(logFileList.contains(o))
-		
-	}	
+		int size = messages.length;
+		String afterIndex = indexFile.appendIndex(size);
+		String[] split = afterIndex.split(":");
+		String logName = split[0];
+		long offset = Long.valueOf(split[1]);
+		// if(logFileList.contains(o))
+
+	}
 
 	public void flush() {
 
@@ -74,11 +73,10 @@ public class CommitLog {
 
 	public void putMessage(int size) {
 		LogFile lastLogFile = getLastLogFile();
-		
-		
+
 		indexFile.appendIndex(size);
 	}
-	
+
 	public FileChannel getIndexFileChannel() {
 		// TODO
 		return null;
