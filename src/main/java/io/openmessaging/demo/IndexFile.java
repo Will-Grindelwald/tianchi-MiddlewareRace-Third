@@ -1,11 +1,9 @@
 package io.openmessaging.demo;
 
-import java.io.RandomAccessFile;
 import java.nio.MappedByteBuffer;
-import java.nio.channels.FileChannel;
 import java.util.concurrent.locks.ReentrantLock;
 
-public class IndexFile {
+public class IndexFile extends MappedFile {
 	// 一个读写锁???
 	private static ReentrantLock fileWriteLock = new ReentrantLock();
 	/*
@@ -14,19 +12,14 @@ public class IndexFile {
 	 * |fileName|offset|mesagesize|
 	 * ----------------------------
 	 */
-	private String fileName; 
 	private Long offset;
-	private Long messageSize;
+	private int indexSize = 30;
 	
-	private MappedByteBuffer mappedByteBuffer;
-	
+//	private MappedByteBuffer mappedByteBuffer;
+	private MappedByteBuffer readMappedByteBuffer, writeMappedByteBuffer;
 
-	private RandomAccessFile indexFile;
-	private FileChannel fileChannel;
-
-	public IndexFile(RandomAccessFile indexFile) {
-		this.indexFile = indexFile;
-		this.fileChannel = indexFile.getChannel();
+	public IndexFile(String path, String fileName) {
+		super(path, fileName);
 	}
 
 
@@ -39,9 +32,11 @@ public class IndexFile {
 	}
 
 	public byte[] readIndexByOffset(long offset) {
+		
 		return null;
 	}
 
+	@Override
 	public void flush() {
 
 	}

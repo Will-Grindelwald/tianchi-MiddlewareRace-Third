@@ -40,13 +40,15 @@ public class DefaultPullConsumer implements PullConsumer {
 		}
 
 		String bucket;
+		long offsetInIndexFile;
 		Message message;
 		for (int index = 0; index < bucketList.size(); index++) {
 			bucket = bucketList.get(index);
-			message = messageStore.pullMessage(bucket, offsets.getOrDefault(bucket, new Long(0)));
+			offsetInIndexFile = offsets.getOrDefault(bucket, new Long(0));
+			message = messageStore.pullMessage(bucket, offsetInIndexFile);
 			if (message != null) {
 				// TODO 修改 offset
-				offsets.put(bucket, null);
+				offsets.put(bucket, offsetInIndexFile + 30);
 				return message;
 			}
 		}

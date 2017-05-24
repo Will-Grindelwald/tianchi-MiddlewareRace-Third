@@ -1,9 +1,6 @@
 package io.openmessaging.demo;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import io.openmessaging.Message;
@@ -11,7 +8,6 @@ import io.openmessaging.Message;
 public class CommitLog {
 
 	private static final long LOG_FILE_SIZE = 100 * 1024 * 1024;
-
 
 	private String path;
 	private IndexFile indexFile = null;
@@ -26,23 +22,10 @@ public class CommitLog {
 		} else {
 			file.mkdirs();
 		}
-		File indexFile = new File(path, "indexFile");
-		if (!indexFile.exists()) {
-			try {
-				file.createNewFile();
-			} catch (IOException e) {
-				throw new ClientOMSException("indexFile create failure 1", e);
-			}
-		}
-		try {
-			this.indexFile = new IndexFile(new RandomAccessFile(indexFile, "rw"));
-		} catch (FileNotFoundException e) {
-			throw new ClientOMSException("indexFile create failure 2", e);
-		}
+		this.indexFile = new IndexFile(path, "indexFile");
 		for (String logFileName : file.list((dir, name) -> name.startsWith("LOG"))) {
-			logFileList.add(new LogFile(path + logFileName, LOG_FILE_SIZE));
+			logFileList.add(new LogFile(path, logFileName, LOG_FILE_SIZE));
 		}
-
 	}
 
 	public LogFile getLastLogFile() {
@@ -54,8 +37,6 @@ public class CommitLog {
 		}
 		return logFileLast;
 	}
-	
-	
 
 	public void getNewLogFile() {
 
@@ -84,12 +65,12 @@ public class CommitLog {
 	}
 
 	public void wirteIndexFile(int size) {
-		LogFile lastLogFile=getLastLogFile();
-//		TODO
-//		indexFile.
-//		if (lastLogFile== null || lastLogFile.getSize()<) {
-//			getNewLogFile();
-//		}
+		LogFile lastLogFile = getLastLogFile();
+		// TODO
+		// indexFile.
+		// if (lastLogFile== null || lastLogFile.getSize()<) {
+		// getNewLogFile();
+		// }
 		indexFile.appendIndex(size);
 	}
 }

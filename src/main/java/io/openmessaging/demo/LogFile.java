@@ -1,9 +1,10 @@
 package io.openmessaging.demo;
 
-public class LogFile {
+public class LogFile extends MappedFile {
 	private long fileSize;
 
-	public LogFile(String path, long fileSize) {
+	public LogFile(String path, String fileName, long fileSize) {
+		super(path, fileName);
 		this.fileSize = fileSize;
 	}
 
@@ -11,12 +12,12 @@ public class LogFile {
 
 	}
 
-	
-	public long getSize(){
+	public long getSize() {
 		return fileSize;
 	}
-	
-	private void flush() {
+
+	@Override
+	public void flush() {
 
 	}
 
