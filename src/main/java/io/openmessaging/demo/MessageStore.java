@@ -3,6 +3,7 @@ package io.openmessaging.demo;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.util.Arrays;
 
 import io.openmessaging.BytesMessage;
 import io.openmessaging.Message;
@@ -41,23 +42,37 @@ public class MessageStore {
 		
 
 	}
-	public byte[] getObjectBytes(DefaultKeyValue kv){
-		ByteArrayOutputStream bout=new ByteArrayOutputStream();
-		try {
-			ObjectOutputStream out=new ObjectOutputStream(bout);
+
+	public byte[] getObjectBytes(DefaultKeyValue kv) {
+		ByteArrayOutputStream bout = new ByteArrayOutputStream();
+		try (ObjectOutputStream out = new ObjectOutputStream(bout)) {
 			out.writeObject(kv.getKVS());
 			out.flush();
-			byte[] bytes=bout.toByteArray();
+			byte[] bytes = bout.toByteArray();
 			bout.close();
-			out.close();
 			return bytes;
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return null;
 	}
 
+	public byte[] messageToBytes(Message message) {
+		// TODO 添加数据压缩
+		byte[] byteHeaders = getObjectBytes((DefaultKeyValue) (message.headers()));
+		byte[] byteProperties = getObjectBytes((DefaultKeyValue) message.properties());
+		byte[] byteBody = ((BytesMessage) message).getBody();
+		byte[] bytes = Arrays.copyOf(byteHeaders, byteHeaders.length + byteProperties.length + byteBody.length);
+		System.arraycopy(byteProperties, 0, bytes, byteHeaders.length, byteProperties.length);
+		System.arraycopy(byteBody, 0, bytes, byteHeaders.length + byteProperties.length, byteBody.length);
+		return bytes;
+	}
+
+	public Message bytesToMessage(byte[] bytes) {
+		// TODO 添加数据压缩
+		return null;
+	}
+	
 	// public void writeMessage(String path) {
 	// File f = new File(path + "/" + "messageAli");
 	//
