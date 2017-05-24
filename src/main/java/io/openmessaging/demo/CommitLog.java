@@ -1,18 +1,21 @@
 package io.openmessaging.demo;
 
 import java.io.File;
+import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import io.openmessaging.Message;
 
 public class CommitLog {
 
-	private static final long LOG_FILE_SIZE = 100 * 1024 * 1024;
+	public static final long LOG_FILE_SIZE = 100 * 1024 * 1024;
 
 	private String path;
 	private IndexFile indexFile = null;
 	private CopyOnWriteArrayList<LogFile> logFileList = new CopyOnWriteArrayList<>();
 
+	
 	public CommitLog(String path) {
 		this.path = path;
 		File file = new File(path);
@@ -42,9 +45,15 @@ public class CommitLog {
 
 	}
 
-	public void appendMessage() {
-
-	}
+	public void appendMessage(byte[] messages) {
+		int size=messages.length;
+		String afterIndex=indexFile.appendIndex(size);
+		String[] split=afterIndex.split(":");
+		String logName=split[0];
+		long offset=Long.valueOf(split[1]);
+//		if(logFileList.contains(o))
+		
+	}	
 
 	public void flush() {
 
@@ -64,13 +73,10 @@ public class CommitLog {
 		return null;
 	}
 
-	public void wirteIndexFile(int size) {
+	public void putMessage(int size) {
 		LogFile lastLogFile = getLastLogFile();
-		// TODO
-		// indexFile.
-		// if (lastLogFile== null || lastLogFile.getSize()<) {
-		// getNewLogFile();
-		// }
+		
+		
 		indexFile.appendIndex(size);
 	}
 }
