@@ -54,6 +54,8 @@ public class CommitLog {
 		}
 		return logFileLast;
 	}
+	
+	
 
 	public void getNewLogFile() {
 
@@ -81,13 +83,13 @@ public class CommitLog {
 		return null;
 	}
 
-	public void wirteIndexFile(long size) {
+	public void wirteIndexFile(int size) {
 		LogFile lastLogFile=getLastLogFile();
 //		TODO
 //		indexFile.
 //		if (lastLogFile== null || lastLogFile.getSize()<) {
 //			getNewLogFile();
 //		}
-//		indexFile.writeIndexFile();
+		indexFile.appendIndex(size);
 	}
 }

@@ -30,8 +30,12 @@ public class IndexFile {
 	}
 
 
-	public void writeIndexFile(String fileName,long offset,long size){
+	public void appendIndex(int size){
 			fileWriteLock.lock();
+//			if
+			
+			
+			fileWriteLock.unlock();
 	}
 
 	public byte[] readIndexByOffset(long offset) {

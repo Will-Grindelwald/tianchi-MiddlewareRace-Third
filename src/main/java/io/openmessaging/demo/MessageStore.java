@@ -34,7 +34,7 @@ public class MessageStore {
 		byte[] byteHeaders=getObjectBytes((DefaultKeyValue)(message.headers()));
 		byte[] byteProperties=getObjectBytes((DefaultKeyValue)message.properties());
 		byte[] byteBody=((BytesMessage) message).getBody();
-		long size=byteHeaders.length+byteProperties.length+byteBody.length;
+		int size=byteHeaders.length+byteProperties.length+byteBody.length;
 		
 		cl.wirteIndexFile(size);
 				
