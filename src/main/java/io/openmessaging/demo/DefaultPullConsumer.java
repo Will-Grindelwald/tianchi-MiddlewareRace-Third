@@ -23,8 +23,6 @@ public class DefaultPullConsumer implements PullConsumer {
 	// 存 <bucket name, offset>
 	private HashMap<String, Long> offsets = new HashMap<>();
 
-	private int lastIndex = 0;
-
 	public DefaultPullConsumer(KeyValue properties) {
 		this.properties = properties;
 		messageStore = new MessageStore(properties.getString("STORE_PATH"));
@@ -43,8 +41,8 @@ public class DefaultPullConsumer implements PullConsumer {
 
 		String bucket;
 		Message message;
-		for (int checkNum = 0; checkNum < bucketList.size(); checkNum++) {
-			bucket = bucketList.get((++lastIndex) % (bucketList.size()));
+		for (int index = 0; index < bucketList.size(); index++) {
+			bucket = bucketList.get(index);
 			message = messageStore.pullMessage(bucket, offsets.getOrDefault(bucket, new Long(0)));
 			if (message != null) {
 				// TODO 修改 offset

@@ -9,10 +9,10 @@ public class LogFile {
 		this.name=name;
 	}
 
-	private void doAppend() {
+	public void doAppend() {
 
 	}
-	
+
 	public void setName(String name){
 		this.name=name;
 	}

@@ -46,7 +46,6 @@ public class DefaultProducer implements Producer {
 
 	@Override
 	public void send(Message message) {
-
 		if (message == null)
 			throw new ClientOMSException("Message should not be null");
 		String topic = message.headers().getString(MessageHeader.TOPIC);
@@ -55,7 +54,6 @@ public class DefaultProducer implements Producer {
 			throw new ClientOMSException(String.format("Queue:%s Topic:%s should put one and only one", true, queue));
 		}
 		messageStore.putMessage(topic != null ? topic : queue, message);
-
 	}
 
 	@Override
@@ -95,7 +93,6 @@ public class DefaultProducer implements Producer {
 
 	@Override
 	public void flush() {
-		// String path = properties().getString("STORE_PATH");
-		// messageStore.writeMessage(path);
+
 	}
 }
