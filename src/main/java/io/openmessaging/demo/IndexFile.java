@@ -16,61 +16,65 @@ import java.util.concurrent.locks.ReentrantLock;
 public class IndexFile extends MappedFile {
 	// 一个读写锁???
 	private ReentrantLock fileWriteLock = new ReentrantLock();
+	
 	private long offset;
-	private int indexSize = 30;
-
-	private static final int ONEINDEXSIZE = 30 * 1024;
-	private static final String NAMEFIRST = "LOG";
+	private static final int ONEINDEXSIZE = 18;
+//	private static AtomicInteger count = new AtomicInteger(0);
+	private static final int INDEXSIZE = ONEINDEXSIZE * 1024*1024;
+	// private static final String NAMEFIRST = "LOG";
 
 	private MappedByteBuffer readMappedByteBuffer, writeMappedByteBuffer;
 	private ByteBuffer byteBuffer = ByteBuffer.allocate(ONEINDEXSIZE);
+
+	private FileChannel fileChannel;
 
 	public IndexFile(String path, String fileName) {
 		super(path, fileName);
 		init();
 	}
-	
-	public void init(){
-		FileChannel tmpFileChannel=super.getFileChannel();
+
+	public void init() {
+		fileChannel = super.getFileChannel();
 		try {
-			writeMappedByteBuffer=tmpFileChannel.map(FileChannel.MapMode.READ_WRITE, 0, tmpFileChannel.size());
+			writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0, INDEXSIZE);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
 
-	public void appendIndex(int size) {
-		String fileName = null;
+	public String appendIndex(int size) {
 		fileWriteLock.lock();
-
+		String fileName = null;
 		if (byteBuffer.remaining() == ONEINDEXSIZE) {
-			fileName = NAMEFIRST + "000000";
+			fileName = "000000";
 			offset = 0L;
+
 		} else {
-			byte[] tmpfirst=new byte[3];
-			byte[] tmplast=new byte[6];
-			byteBuffer.get(tmpfirst);
-			byteBuffer.get(tmplast);
-			offset=byteBuffer.getLong();
-			int lastSize=byteBuffer.getInt();
-			offset+=lastSize;
-			String namefirst=new String(tmpfirst);
-			if(!namefirst.equals(NAMEFIRST)){
-				System.out.println("校验出现问题，code:1");
-				namefirst=NAMEFIRST;
+			byte[] tmpname = new byte[6];
+			byteBuffer.get(tmpname);
+			offset = byteBuffer.getLong();
+			int lastSize = byteBuffer.getInt();
+			offset += lastSize;
+			int name = Integer.valueOf(new String(tmpname));
+			if (offset + size > CommitLog.LOG_FILE_SIZE) {
+				fileName = String.format("%06d", name + 1);
+				offset = 0;
+			} else {
+				fileName = String.format("%06d", name);
 			}
-			int namelast=Integer.valueOf(new String(tmplast));
-			fileName=namefirst+String.format("%06d", namelast+1);
-			
-			
+
 		}
 		byteBuffer.put(fileName.getBytes());
 		byteBuffer.putLong(offset);
 		byteBuffer.putInt(size);
 		byteBuffer.flip();
-		
-		
+		if (writeMappedByteBuffer.remaining() >= byteBuffer.limit()) {
+			writeMappedByteBuffer.put(byteBuffer);
+		} else {
+			flush();
+		}
 		fileWriteLock.unlock();
+		return fileName+":"+offset;
 	}
 
 	public byte[] readIndexByOffset(long offset) {
@@ -80,6 +84,16 @@ public class IndexFile extends MappedFile {
 
 	@Override
 	public void flush() {
+		writeMappedByteBuffer.flip();
+		writeMappedByteBuffer.force();
+		writeMappedByteBuffer.clear();
+//		try {
+//			int i = count.incrementAndGet();
+//			writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, i * INDEXSIZE, 2 * i * INDEXSIZE);
+//		} catch (IOException e) {
+//			System.out.println("MappedByteBuffer Exception");
+//			e.printStackTrace();
+//		}
 
 	}
 

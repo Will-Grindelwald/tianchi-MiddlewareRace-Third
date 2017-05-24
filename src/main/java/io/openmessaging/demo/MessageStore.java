@@ -29,18 +29,13 @@ public class MessageStore {
 		// }
 		// ArrayList<Message> bucketList = messageBuckets.get(bucket);
 		// bucketList.add(message);
-		CommitLog cl = CommitLogHandler.getCommitLogByName(path, bucket);
+		CommitLog cl=CommitLogHandler.getCommitLogByName(path, bucket);
+		byte[] messages=messageToBytes(message);
 
-		byte[] byteHeaders = getObjectBytes((DefaultKeyValue) (message.headers()));
-		byte[] byteProperties = getObjectBytes((DefaultKeyValue) message.properties());
-		byte[] byteBody = ((BytesMessage) message).getBody();
-		int size = byteHeaders.length + byteProperties.length + byteBody.length;
-
-		cl.wirteIndexFile(size);
-
-		// TODO 分字段写入：headers,propersites,body等
-		// ByteBuffer
-		// bb=ByteBuffer.wrap(getObjectBytes(((DefaultKeyValue)(message.headers()))));
+		cl.appendMessage(messages);
+				
+		//TODO 分字段写入：headers,propersites,body等
+//		ByteBuffer bb=ByteBuffer.wrap(getObjectBytes(((DefaultKeyValue)(message.headers()))));
 
 	}
 
