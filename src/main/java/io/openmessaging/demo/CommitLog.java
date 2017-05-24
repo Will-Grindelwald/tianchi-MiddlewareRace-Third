@@ -3,12 +3,16 @@ package io.openmessaging.demo;
 import java.io.File;
 import java.nio.channels.FileChannel;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import io.openmessaging.Message;
 
 public class CommitLog {
 
 	public static final long LOG_FILE_SIZE = 100 * 1024 * 1024;
+	private static final int BYTESIZE = 21 * 1024 * 1024;
+	private byte[] cirleBytes = new byte[BYTESIZE];
+	private static AtomicInteger countFlag = new AtomicInteger(0);
 
 	private String path;
 	private IndexFile indexFile = null;
@@ -48,7 +52,15 @@ public class CommitLog {
 		String afterIndex = indexFile.appendIndex(size);
 		String[] split = afterIndex.split(":");
 		String logName = split[0];
-		long offset = Long.valueOf(split[1]);
+		int offset = Integer.valueOf(split[1]);
+		for (int i = offset; i <= offset + size; i++) {
+			// if()
+			// cirleBytes[i%BYTESIZE]=messages[i];
+
+		}
+		if (offset != 0) {
+
+		}
 		// if(logFileList.contains(o))
 
 	}

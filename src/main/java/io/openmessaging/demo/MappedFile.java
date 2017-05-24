@@ -23,12 +23,11 @@ public abstract class MappedFile {
 		}
 		this.fileChannel = this.file.getChannel();
 	}
-	
-	public FileChannel getFileChannel(){
+
+	public FileChannel getFileChannel() {
 		return this.fileChannel;
 	}
-	
-	
+
 	public abstract void flush();
 
 }
