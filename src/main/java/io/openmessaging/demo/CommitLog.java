@@ -12,12 +12,12 @@ public class CommitLog {
 	public static final long LOG_FILE_SIZE = 100 * 1024 * 1024;
 	private static final int BYTESIZE = 21 * 1024 * 1024;
 	private byte[] cirleBytes = new byte[BYTESIZE];
-	private static AtomicInteger countFlag = new AtomicInteger(0);
-
+	private static AtomicInteger[] countFlag = new AtomicInteger[3];
+	private static AtomicInteger shouldAppend=new AtomicInteger(0);
 	private String path;
 	private IndexFile indexFile = null;
 	private CopyOnWriteArrayList<LogFile> logFileList = new CopyOnWriteArrayList<>();
-
+ 
 	public CommitLog(String path) {
 		this.path = path;
 		File file = new File(path);
@@ -54,14 +54,26 @@ public class CommitLog {
 		String logName = split[0];
 		int offset = Integer.valueOf(split[1]);
 		for (int i = offset; i <= offset + size; i++) {
-			// if()
-			// cirleBytes[i%BYTESIZE]=messages[i];
+			int index=i%BYTESIZE;
+			if(index==0 && i!=offset){
+				while(countFlag[shouldAppend.get()].get()==BYTESIZE/3){
+					getLastLogFile().doAppend(cirleBytes);
+					shouldAppend.incrementAndGet();
+				}
+			}
+		 	if(index>0&&index<BYTESIZE/3){
+				countFlag[0].incrementAndGet();
+			}
+			else if(index>=BYTESIZE/3&&index<(2*BYTESIZE)/3){
+				countFlag[1].incrementAndGet();
+			}
+			else{
+				countFlag[2].incrementAndGet();
+			}
+			cirleBytes[index]=messages[i-offset];
 
 		}
-		if (offset != 0) {
-
-		}
-		// if(logFileList.contains(o))
+		// if(logFileList. contains(o))
 
 	}
 
