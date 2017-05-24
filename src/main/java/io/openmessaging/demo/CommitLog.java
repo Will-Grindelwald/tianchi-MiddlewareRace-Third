@@ -1,6 +1,7 @@
 package io.openmessaging.demo;
 
 import java.io.File;
+import java.nio.channels.FileChannel;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import io.openmessaging.Message;
@@ -72,5 +73,10 @@ public class CommitLog {
 		// getNewLogFile();
 		// }
 		indexFile.appendIndex(size);
+	}
+	
+	public FileChannel getIndexFileChannel() {
+		// TODO
+		return null;
 	}
 }

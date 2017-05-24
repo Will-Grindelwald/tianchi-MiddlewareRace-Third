@@ -6,16 +6,16 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * 索引文件结构：
+ * --------------------------
+ * |fileID|offset|mesagesize|
+ * |000000|long  |int       |
+ * --------------------------
+ */
 public class IndexFile extends MappedFile {
 	// 一个读写锁???
-	private static ReentrantLock fileWriteLock = new ReentrantLock();
-	/**
-	 * 索引文件结构：
-	 * ----------------------------
-	 * |fileName|offset|mesagesize|
-	 * |LOG000000|long |int       |
-	 * ----------------------------
-	 */
+	private ReentrantLock fileWriteLock = new ReentrantLock();
 	private long offset;
 	private int indexSize = 30;
 
