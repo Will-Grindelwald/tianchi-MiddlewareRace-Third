@@ -9,7 +9,7 @@ public class CommitLog {
 
 	private String path;
 	private static final long LOG_FILE_SIZE = 100 * 1024 * 1024;
-
+	
 	private IndexFile indexFile;
 	private CopyOnWriteArrayList<LogFile> logFileList = new CopyOnWriteArrayList<>();
 
@@ -27,8 +27,14 @@ public class CommitLog {
 		// logFileList = new LogFile(path, LOG_FILE_SIZE);
 	}
 
-	public void getLastLogFile() {
+	public LogFile getLastLogFile() {
+		LogFile logFileLast = null;
+		// 可能会有异常
+		if (!logFileList.isEmpty()) {
+			logFileLast = logFileList.get(logFileList.size() - 1);
 
+		}
+		return logFileLast;
 	}
 
 	public void getNewLogFile() {
@@ -57,7 +63,13 @@ public class CommitLog {
 		return null;
 	}
 
-	public IndexFile getIndexFile() {
-		return indexFile;
+	public void wirteIndexFile(long size) {
+		LogFile lastLogFile=getLastLogFile();
+//		TODO
+//		indexFile.
+//		if (lastLogFile== null || lastLogFile.getSize()<) {
+//			getNewLogFile();
+//		}
+//		indexFile.writeIndexFile();
 	}
 }

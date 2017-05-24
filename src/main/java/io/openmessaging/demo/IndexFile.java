@@ -4,16 +4,28 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class IndexFile {
 	// 一个读写锁
 	private static ReentrantLock fileWriteLock = new ReentrantLock();
+
+	/*
+	 * 索引文件结构：
+	 * ----------------------------
+	 * |fileName|offset|mesagesize|
+	 * ----------------------------
+	 */
+	private String fileName; 
+	private Long offset;
+	private Long messageSize;
+	
 	private String path;
 	private FileChannel fc;
-	private ByteBuffer bf;//or Mapped
+	private MappedByteBuffer mappedByteBuffer;
+	
 	public IndexFile(String path) {
 		this.path = path+"/indexFile";
 	}
@@ -36,23 +48,12 @@ public class IndexFile {
 			}
 		}
 	}
-	public void writeIndexFile(){
+	public void writeIndexFile(String fileName,long offset,long size){
 		fileWriteLock.lock();
 		
 	}
 	
 
-//	public void creatFile() {
-//		fileWriteLock.lock();
-//		try {
-//			file.createNewFile();
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//		}
-//		finally{
-//			fileWriteLock.unlock();
-//		}
-//	}
 
 	public byte[] readIndexByOffset(long offset) {
 		return null;
