@@ -7,11 +7,11 @@ public class LogFile {
 		this.fileSize = fileSize;
 	}
 
-	private void doAppend() {
+	public void doAppend() {
 
 	}
 
-	private void flush() {
+	public void flush() {
 
 	}
 
