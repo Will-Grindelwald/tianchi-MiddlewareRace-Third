@@ -8,8 +8,8 @@ public class LogFile extends MappedFile {
 		this.fileSize = fileSize;
 	}
 
-	public void doAppend(byte[] bytes) {
-
+	public void doAppend(byte[] bytes,int start,int end) {
+		su
 	}
 
 	public long getSize() {

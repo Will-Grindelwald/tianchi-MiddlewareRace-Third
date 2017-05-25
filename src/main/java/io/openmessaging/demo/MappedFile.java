@@ -27,6 +27,10 @@ public abstract class MappedFile {
 	public FileChannel getFileChannel() {
 		return this.fileChannel;
 	}
+	
+	public String getFileName(){
+		return this.fileName;
+	}
 
 	public abstract void flush();
 
