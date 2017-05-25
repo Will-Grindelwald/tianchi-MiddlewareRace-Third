@@ -62,36 +62,28 @@ public class CommitLog {
 		String logName = split[0];
 		int offset = Integer.valueOf(split[1]);
 		for (int i = offset; i <= offset + size; i++) {
-		
+			int index=i%BYTESIZE;
+			
+			//提交第一部分
+			if(index==shouldAppend.get()*BUFFERSIZE && i!=offset){
+				while(countFlag.get(0).get()==BUFFERSIZE){
+					countFlag.get(0).set(0);
+					if(offset==0){
+//						logFileList.get(logFileList.size()-1).getFileName();
+						getNewLogFile(logName);
+					}
+					logFileList.get(logFileList.size()-1).doAppend(cirleBytes,0,BUFFERSIZE);
+				}
+			}
+			
+			else if(index>0&& index<BYTESIZE/2){
+				countFlag.get(0).incrementAndGet();
+			}
+			else if(index>=BYTESIZE/2){
+				countFlag.get(1).incrementAndGet();
+			}
+			cirleBytes[index] = messages[i - offset];
 		}
-//			int index=i%BYTESIZE;
-//			//TODO 合并提交方法
-//			//提交第一部分
-//			if(index==0 && i!=offset){
-//				while(countFlag.get(0).get()==HALFBYTESIZE){
-//					countFlag.get(0).set(0);
-//					if(offset==0){
-////						logFileList.get(logFileList.size()-1).getFileName();
-//						getNewLogFile(logName);
-//					}
-//					logFileList.get(logFileList.size()-1).doAppend(cirleBytes,0,HALFBYTESIZE);
-//				}
-//			}
-//			//提交第二部分
-//			if(index==HALFBYTESIZE && (i/BYTESIZE)>0){
-//				while(countFlag.get(1).get()==HALFBYTESIZE){
-//					countFlag.get(1).set(0);
-//					
-//				}
-//			}
-//			else if(index>0&& index<BYTESIZE/2){
-//				countFlag.get(0).incrementAndGet();
-//			}
-//			else if(index>=BYTESIZE/2){
-//				countFlag.get(1).incrementAndGet();
-//			}
-//			cirleBytes[index] = messages[i - offset];
-//		}
 
 	}
 
