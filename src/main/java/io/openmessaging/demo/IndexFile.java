@@ -63,6 +63,7 @@ public class IndexFile extends MappedFile {
 			} else {
 				fileName = String.format("%06d", name);
 			}
+			byteBuffer.clear();
 
 		}
 		byteBuffer.put(fileName.getBytes());
@@ -73,6 +74,7 @@ public class IndexFile extends MappedFile {
 			writeMappedByteBuffer.put(byteBuffer);
 		} else {
 			flush();
+			writeMappedByteBuffer.put(byteBuffer);
 		}
 		fileWriteLock.unlock();
 		return fileName + ":" + offset;
