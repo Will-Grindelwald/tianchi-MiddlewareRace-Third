@@ -1,6 +1,8 @@
 package io.openmessaging.demo;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
@@ -14,32 +16,35 @@ import java.util.concurrent.locks.ReentrantLock;
  * --------------------------
  */
 // TODO 将 offset 改为 int
-public class IndexFile extends MappedFile {
+public class IndexFile {
 	// 一个读写锁???
 	private ReentrantLock fileWriteLock = new ReentrantLock();
 
 	private long offset;
-	private static final int INDEX_SIZE = 14;
+	public static final int INDEX_SIZE = 14;
 	// private static AtomicInteger count = new AtomicInteger(0);
 	private static final int INDEX_FILE_SIZE = INDEX_SIZE * 1024 * 1024;
 	// private static final String NAMEFIRST = "LOG";
-
-	private MappedByteBuffer readMappedByteBuffer, writeMappedByteBuffer;
+	private String path;
+	private String fileName;
+	private RandomAccessFile file;
+	private FileChannel fileChannel;
+	private MappedByteBuffer writeMappedByteBuffer;
 	private ByteBuffer byteBuffer = ByteBuffer.allocate(INDEX_SIZE);
 
-	private FileChannel fileChannel;
-
 	public IndexFile(String path, String fileName) {
-		super(path, fileName);
-		init();
-	}
-
-	public void init() {
-		fileChannel = super.getFileChannel();
+		this.path = path;
+		this.fileName = fileName;
+		File file = new File(path, fileName);
 		try {
+			if (!file.exists()) {
+				file.createNewFile();
+			}
+			this.file = new RandomAccessFile(file, "rw");
+			this.fileChannel = this.file.getChannel();
 			writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0, INDEX_FILE_SIZE);
 		} catch (IOException e) {
-			e.printStackTrace();
+			throw new ClientOMSException("indexFile create failure", e);
 		}
 	}
 
@@ -83,7 +88,6 @@ public class IndexFile extends MappedFile {
 		return null;
 	}
 
-	@Override
 	public void flush() {
 		writeMappedByteBuffer.flip();
 		writeMappedByteBuffer.force();
