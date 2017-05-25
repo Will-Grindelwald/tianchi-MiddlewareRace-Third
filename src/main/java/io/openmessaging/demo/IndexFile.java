@@ -12,19 +12,19 @@ import java.util.concurrent.locks.ReentrantLock;
  * 索引文件结构：
  * --------------------------
  * |fileID|offset|mesagesize|
- * |000000|int   |int       |
+ * |000000|long  |int       |
  * --------------------------
  */
-// TODO 将 offset 改为 int
+// TODO 将 offset 改为 int ?
 public class IndexFile {
+	public static final int INDEX_SIZE = 18; // 6 + 8 + 4
+	public static final int INDEX_FILE_SIZE = INDEX_SIZE * 1024 * 1024;
+	// private static AtomicInteger count = new AtomicInteger(0);
+	// private static final String NAMEFIRST = "LOG";
+
 	// 一个读写锁???
 	private ReentrantLock fileWriteLock = new ReentrantLock();
-
-	private long offset;
-	public static final int INDEX_SIZE = 14;
-	// private static AtomicInteger count = new AtomicInteger(0);
-	private static final int INDEX_FILE_SIZE = INDEX_SIZE * 1024 * 1024;
-	// private static final String NAMEFIRST = "LOG";
+	
 	private String path;
 	private String fileName;
 	private RandomAccessFile file;
@@ -44,45 +44,44 @@ public class IndexFile {
 			this.fileChannel = this.file.getChannel();
 			writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0, INDEX_FILE_SIZE);
 		} catch (IOException e) {
-			throw new ClientOMSException("indexFile create failure", e);
+			throw new ClientOMSException("IndexFile create failure", e);
 		}
 	}
 
 	public String appendIndex(int size) {
+		String fileID;
+		byte[] previousMessageFileID = new byte[6];
+		long Offset;
+		int previousMessageSize;
 		fileWriteLock.lock();
-		String fileName = null;
 		if (byteBuffer.remaining() == INDEX_SIZE) {
-			fileName = "000000";
-			offset = 0L;
-
+			fileID = "000000";
+			Offset = 0L;
+			previousMessageSize = 0;
 		} else {
-			byte[] tmpname = new byte[6];
-			byteBuffer.get(tmpname);
-			offset = byteBuffer.getLong();
-			int lastSize = byteBuffer.getInt();
-			offset += lastSize;
-			int name = Integer.valueOf(new String(tmpname));
-			if (offset + size > CommitLog.LOG_FILE_SIZE) {
-				fileName = String.format("%06d", name + 1);
-				offset = 0;
+			byteBuffer.get(previousMessageFileID);
+			Offset = byteBuffer.getLong();
+			previousMessageSize = byteBuffer.getInt();
+			int name = Integer.valueOf(new String(previousMessageFileID));
+			Offset += previousMessageSize;
+			if (Offset + size > CommitLog.LOG_FILE_SIZE) {
+				fileID = String.format("%06d", name + 1);
+				Offset = 0;
 			} else {
-				fileName = String.format("%06d", name);
+				fileID = String.format("%06d", name);
 			}
 			byteBuffer.clear();
-
 		}
-		byteBuffer.put(fileName.getBytes());
-		byteBuffer.putLong(offset);
+		byteBuffer.put(fileID.getBytes());
+		byteBuffer.putLong(Offset);
 		byteBuffer.putInt(size);
 		byteBuffer.flip();
-		if (writeMappedByteBuffer.remaining() >= byteBuffer.limit()) {
-			writeMappedByteBuffer.put(byteBuffer);
-		} else {
+		if (writeMappedByteBuffer.remaining() < byteBuffer.limit()) {
 			flush();
-			writeMappedByteBuffer.put(byteBuffer);
 		}
+		writeMappedByteBuffer.put(byteBuffer);
 		fileWriteLock.unlock();
-		return fileName + ":" + offset;
+		return fileID + ":" + Offset;
 	}
 
 	public byte[] readIndexByOffset(long offset) {
