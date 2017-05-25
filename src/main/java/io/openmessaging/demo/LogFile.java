@@ -28,8 +28,12 @@ public class LogFile {
 		}
 	}
 
-	public void doAppend(byte[] bytes) {
+	public void doAppend(byte[] bytes,int start,int end) {
 
+	}
+
+	public String getFileName(){
+		return this.fileName;
 	}
 
 	public void flush() {

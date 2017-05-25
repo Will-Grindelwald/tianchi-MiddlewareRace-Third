@@ -16,6 +16,7 @@ public class CommitLog {
 	private static final int HALFBYTESIZE = BYTE_SIZE / 2;
 
 	private static AtomicInteger shouldAppend = new AtomicInteger(0);
+	
 	private static ConcurrentHashMap<String, AtomicInteger> countFlag = new ConcurrentHashMap<>();
 
 	private byte[] cirleBytes = new byte[BYTE_SIZE];
@@ -49,8 +50,8 @@ public class CommitLog {
 		return logFileLast;
 	}
 
-	public void getNewLogFile() {
-
+	public void getNewLogFile(String fileName) {
+		logFileList.add(new LogFile(path, "LOG" + fileName));
 	}
 
 	public void appendMessage(byte[] messages) {
@@ -62,27 +63,36 @@ public class CommitLog {
 		String logName = split[0];
 		int offset = Integer.valueOf(split[1]);
 		for (int i = offset; i <= offset + size; i++) {
-			int index = i % BYTE_SIZE;
-			// 提交第一部分
-			if (index == 0 && i != offset) {
-				// int tmp=shouldAppend.get();
-				// while(countFlag.get(tmp).get()==HALFBYTESIZE){
-				//// shouldAppend.set(shouldAppend.get()==0?1:0);
-				//// countFlag.co
-				// }
-			}
-			// 提交第二部分
-			if (index == HALFBYTESIZE && (i / BYTE_SIZE) > 0) {
-				while (countFlag.get(1).get() == HALFBYTESIZE) {
-					countFlag.get(1).set(0);
-				}
-			} else if (index > 0 && index < BYTE_SIZE / 2) {
-				countFlag.get(0).incrementAndGet();
-			} else if (index >= BYTE_SIZE / 2) {
-				countFlag.get(1).incrementAndGet();
-			}
-			cirleBytes[index] = messages[i - offset];
+			
 		}
+//			int index=i%BYTESIZE;
+//			//TODO 合并提交方法
+//			//提交第一部分
+//			if(index==0 && i!=offset){
+//				while(countFlag.get(0).get()==HALFBYTESIZE){
+//					countFlag.get(0).set(0);
+//					if(offset==0){
+////						logFileList.get(logFileList.size()-1).getFileName();
+//						getNewLogFile(logName);
+//					}
+//					logFileList.get(logFileList.size()-1).doAppend(cirleBytes,0,HALFBYTESIZE);
+//				}
+//			}
+//			//提交第二部分
+//			if(index==HALFBYTESIZE && (i/BYTESIZE)>0){
+//				while(countFlag.get(1).get()==HALFBYTESIZE){
+//					countFlag.get(1).set(0);
+//					
+//				}
+//			}
+//			else if(index>0&& index<BYTESIZE/2){
+//				countFlag.get(0).incrementAndGet();
+//			}
+//			else if(index>=BYTESIZE/2){
+//				countFlag.get(1).incrementAndGet();
+//			}
+//			cirleBytes[index] = messages[i - offset];
+//		}
 
 	}
 

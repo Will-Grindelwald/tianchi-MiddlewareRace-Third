@@ -89,6 +89,10 @@ public class IndexFile {
 		return null;
 	}
 
+	public String getFileName(){
+		return this.fileName;
+	}
+
 	public void flush() {
 		writeMappedByteBuffer.flip();
 		writeMappedByteBuffer.force();
