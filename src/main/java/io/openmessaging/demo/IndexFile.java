@@ -40,7 +40,7 @@ public class IndexFile {
 			}
 			this.file = new RandomAccessFile(file, "rw");
 			this.fileChannel = this.file.getChannel();
-			writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0, Constants.BUFFER_SIZE);
+			writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0, Constants.INDEX_WRITE_BUFFER_SIZE);
 		} catch (IOException e) {
 			throw new ClientOMSException("IndexFile create failure", e);
 		}
@@ -99,7 +99,7 @@ public class IndexFile {
 		writeMappedByteBuffer.clear();
 		try {
 			writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE,
-					count.incrementAndGet() * Constants.BUFFER_SIZE, Constants.BUFFER_SIZE);
+					count.incrementAndGet() * Constants.INDEX_WRITE_BUFFER_SIZE, Constants.INDEX_WRITE_BUFFER_SIZE);
 		} catch (IOException e) {
 			System.out.println("MappedByteBuffer Exception");
 			e.printStackTrace();
