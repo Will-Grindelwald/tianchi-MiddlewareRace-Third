@@ -61,6 +61,14 @@ public class ReadBuffer {
 		return false;
 	}
 
+	/**
+	 * 
+	 * @param bucket bucket's name
+	 * @param fileChannel the fileChannel of bucket
+	 * @param offset 
+	 * @param lenth
+	 * @return
+	 */
 	public byte[] read(String bucket, FileChannel fileChannel, int offset, int lenth) {
 		byte[] result = new byte[lenth];
 		// readIndexFileBuffer 缓存不命中
@@ -70,16 +78,16 @@ public class ReadBuffer {
 			// TODO 测试 load 与 不 load 谁快
 			// buffer.load();
 			// TODO 边界用 >= ? 待测
-		} else if (offset >= this.offsetInFile) {
+		} else if (offset >= offsetInFile) {
 			// 2. 超出映射范围
 			reMap(offset, Constants.BUFFER_SIZE);
 			// buffer.load();
 		}
 
 		// TODO 边界用 >= ? 待测
-		if (lenth > this.offsetInFile - offset) {
+		if (lenth >= offsetInFile - offset) {
 			// 读两段
-			int size1 = (int) (this.offsetInFile - offset);
+			int size1 = (int) (offsetInFile - offset);
 			buffer.get(result, 0, size1);
 			if (!reMap()) {
 				return null; // no more to map == no more new record

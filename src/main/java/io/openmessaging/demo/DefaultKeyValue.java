@@ -14,6 +14,10 @@ public class DefaultKeyValue implements KeyValue {
 		return kvs;
 	}
 
+	public Object get(String key) {
+		return kvs.get(key);
+	}
+
 	@Override
 	public KeyValue put(String key, int value) {
 		kvs.put(key, value);

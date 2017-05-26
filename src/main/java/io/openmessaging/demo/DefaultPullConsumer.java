@@ -39,7 +39,6 @@ public class DefaultPullConsumer implements PullConsumer {
 		}
 
 		String bucket;
-		int offsetInIndexFile;
 		Message message;
 		// 慢轮询, 不致饿死后面的 topic, 又可提高 page cache 命中
 		for (int index = 0; index < bucketList.size(); index++) {
