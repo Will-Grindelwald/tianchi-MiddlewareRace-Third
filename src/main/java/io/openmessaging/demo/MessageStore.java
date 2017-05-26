@@ -13,21 +13,19 @@ import io.openmessaging.Message;
 // 一个 Producer/Consumer 一个，不会有并发
 public class MessageStore {
 
-	private String path;
+	private final String path;
 
 	// for Producer
-	private ByteBuffer KVToBytesBuffer = ByteBuffer.allocate(2 * 1024 * 1024);
+	private final ByteBuffer KVToBytesBuffer = ByteBuffer.allocate(2 * 1024 * 1024);
 
 	// for Consumer
 	// 存 <bucket name, offsetInIndexFile>
-	private HashMap<String, Integer> offsets = new HashMap<>();
-	private ReadBuffer readIndexFileBuffer;
-	private ReadBuffer readLogFileBuffer;
+	private final HashMap<String, Integer> offsets = new HashMap<>();
+	private final ReadBuffer readIndexFileBuffer = new ReadBuffer();
+	private final ReadBuffer readLogFileBuffer = new ReadBuffer();
 
 	public MessageStore(String path) {
 		this.path = path;
-		readIndexFileBuffer = new ReadBuffer();
-		readLogFileBuffer = new ReadBuffer();
 	}
 
 	// for Producer

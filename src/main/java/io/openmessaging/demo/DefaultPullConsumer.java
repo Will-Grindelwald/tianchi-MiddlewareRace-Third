@@ -11,8 +11,8 @@ import io.openmessaging.Message;
 import io.openmessaging.PullConsumer;
 
 public class DefaultPullConsumer implements PullConsumer {
-	private KeyValue properties;
-	private MessageStore messageStore;
+	private final KeyValue properties;
+	private final MessageStore messageStore;
 
 	private String queue;
 	// 存 queue name & topic name, set 去重

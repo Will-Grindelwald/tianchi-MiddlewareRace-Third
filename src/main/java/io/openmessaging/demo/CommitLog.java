@@ -9,9 +9,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 // 全局唯一, 小心并发
 public class CommitLog {
 
-	private String path;
-	private IndexFile indexFile;
-	private CopyOnWriteArrayList<LogFile> logFileList = new CopyOnWriteArrayList<>();
+	private final String path;
+	private final IndexFile indexFile;
+	private final CopyOnWriteArrayList<LogFile> logFileList = new CopyOnWriteArrayList<>();
 
 	private AtomicInteger shouldAppend = new AtomicInteger(0);
 	private AtomicInteger logFileOffset = new AtomicInteger(1);

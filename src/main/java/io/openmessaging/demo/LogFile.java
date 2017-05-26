@@ -9,12 +9,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 // 全局唯一, 小心并发
 public class LogFile {
-	private AtomicInteger offset = new AtomicInteger(0);
 	private final String path;
 	private final String fileName;
 	private final RandomAccessFile file;
 	private final FileChannel fileChannel;
 	private MappedByteBuffer writeMappedByteBuffer;
+	private AtomicInteger offset = new AtomicInteger(0);
 
 	public LogFile(String path, String fileName) {
 		this.path = path;

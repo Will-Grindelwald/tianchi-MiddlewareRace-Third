@@ -10,9 +10,9 @@ import io.openmessaging.Producer;
 import io.openmessaging.Promise;
 
 public class DefaultProducer implements Producer {
-	private MessageFactory messageFactory = new DefaultMessageFactory();
-	private MessageStore messageStore;
-	private KeyValue properties;
+	private final MessageFactory messageFactory = new DefaultMessageFactory();
+	private final MessageStore messageStore;
+	private final KeyValue properties;
 
 	public DefaultProducer(KeyValue properties) {
 		this.properties = properties;
