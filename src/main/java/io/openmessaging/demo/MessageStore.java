@@ -31,20 +31,27 @@ public class MessageStore {
 	}
 
 	public void putMessage(String bucket, Message message) {
-		// if (!messageBuckets.containsKey(bucket)) {
-		// messageBuckets.put(bucket, new ArrayList<>(1024));
-		// }
-		// ArrayList<Message> bucketList = messageBuckets.get(bucket);
-		// bucketList.add(message);
-		CommitLog cl = CommitLogHandler.getCommitLogByName(path, bucket);
 		byte[] messages = messageToBytes(message);
+		CommitLogHandler.getCommitLogByName(path, bucket).appendMessage(messages);
+	}
 
-		cl.appendMessage(messages);
+	// 利用 MappedBuffer 读 message
+	public Message pullMessage(String bucket) {
+		// Step 1: 读 Index
+		int offsetInIndexFile = offsets.getOrDefault(bucket, Integer.valueOf(0));
+		FileChannel indexFileChannel = getIndexFileChannel(bucket);
+		byte[] index = readIndexFileBuffer.read(bucket, indexFileChannel, offsetInIndexFile, Constants.INDEX_SIZE);
 
-		// TODO 分字段写入：headers,propersites,body等
-		// ByteBuffer
-		// bb=ByteBuffer.wrap(getObjectBytes(((DefaultKeyValue)(message.headers()))));
+		// Step 2: 读 Message
+		int offsetInLogFile = Utils.getInt(index, Constants.OFFSET_POS),
+				messageSize = Utils.getInt(index, Constants.SIZE_POS);
+		FileChannel logFileChannel = getLogFileChannelByFileID(bucket,
+				new String(index, Constants.FILEID_POS, Constants.OFFSET_POS - Constants.FILEID_POS));
+		byte[] message = readLogFileBuffer.read(bucket, logFileChannel, offsetInLogFile, messageSize);
 
+		// TODO 修改 offset
+		offsets.put(bucket, offsetInIndexFile + 30);
+		return bytesToMessage(message);
 	}
 
 	// defaultKeyValueToBytes 的另一种解决方案
@@ -54,6 +61,7 @@ public class MessageStore {
 		}
 		Object value;
 		byte[] keyBytes, stringValueBytes;
+		KVToBytesBuffer.clear();
 		for (String key : kv.keySet()) {
 			value = kv.get(key);
 			if (value instanceof Integer) {
@@ -157,25 +165,6 @@ public class MessageStore {
 			bytesToDefaultKeyValue((DefaultKeyValue) (message.properties()), bytes, pos, length);
 		}
 		return null;
-	}
-
-	// 利用 MappedBuffer 读 message
-	public Message pullMessage(String bucket) {
-		// Step 1: 读 Index
-		int offsetInIndexFile = offsets.getOrDefault(bucket, Integer.valueOf(0));
-		FileChannel indexFileChannel = getIndexFileChannel(bucket);
-		byte[] index = readIndexFileBuffer.read(bucket, indexFileChannel, offsetInIndexFile, Constants.INDEX_SIZE);
-
-		// Step 2: 读 Message
-		int offsetInLogFile = Utils.getInt(index, Constants.OFFSET_POS),
-				messageSize = Utils.getInt(index, Constants.SIZE_POS);
-		FileChannel logFileChannel = getLogFileChannelByFileID(bucket,
-				new String(index, Constants.FILEID_POS, Constants.OFFSET_POS - Constants.FILEID_POS));
-		byte[] message = readLogFileBuffer.read(bucket, logFileChannel, offsetInLogFile, messageSize);
-
-		// TODO 修改 offset
-		offsets.put(bucket, offsetInIndexFile + 30);
-		return bytesToMessage(message);
 	}
 
 	public FileChannel getIndexFileChannel(String bucket) {
