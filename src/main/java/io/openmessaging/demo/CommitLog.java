@@ -13,7 +13,7 @@ public class CommitLog {
 	private CopyOnWriteArrayList<LogFile> logFileList = new CopyOnWriteArrayList<>();
 
 	private AtomicInteger shouldAppend = new AtomicInteger(0);
-	private AtomicInteger logFileOffset = new AtomicInteger(0);
+	private AtomicInteger logFileOffset = new AtomicInteger(1);
 	private ConcurrentHashMap<Integer, AtomicInteger> countFlag = new ConcurrentHashMap<>();
 	private byte[] loopBytes = new byte[Constants.BYTE_SIZE];
 	
@@ -58,6 +58,85 @@ public class CommitLog {
 		logFileList.add(newFile);
 		return newFile;
 	}
+	public void appendMessage(byte[] messages){
+		int size = messages.length;
+		// appendIndex是否返回Name待定
+		String afterIndex = indexFile.appendIndex(size);
+		String[] split = afterIndex.split(":");
+		String logName = split[0];
+		System.out.println("a"+logName);
+		int offset = Integer.valueOf(split[1]);
+		int sum=offset+size;
+		if(offset>=logFileOffset.get()*Constants.BYTE_SIZE){
+			offset-=(logFileOffset.get()*Constants.BYTE_SIZE);
+			logFileOffset.incrementAndGet();
+			
+		}
+			if( (offset<Constants.BUFFER_SIZE) && (sum>Constants.BUFFER_SIZE)){
+				if(logFileOffset.get()>1){
+					while(countFlag.get(1).get()<Constants.BUFFER_SIZE){
+						//等待
+						System.out.println("wait1...");
+					}
+					appendMessage(loopBytes,logName);
+					countFlag.get(1).set(0);
+				}
+				int first=Constants.BUFFER_SIZE-offset;
+				int last=offset+size-Constants.BUFFER_SIZE;
+				countFlag.get(0).addAndGet(first);
+				countFlag.get(1).addAndGet(last);
+			}
+			else if( (offset<2*Constants.BUFFER_SIZE) && (sum>2*Constants.BUFFER_SIZE)){
+				if(logFileOffset.get()>1){
+					while(countFlag.get(2).get()<Constants.BUFFER_SIZE){
+						//等待
+						System.out.println("wait2...");
+					}
+					appendMessage(loopBytes,logName);
+					countFlag.get(2).set(0);
+				}
+				
+				int first=2*Constants.BUFFER_SIZE-offset;
+				int last=offset+size-2*Constants.BUFFER_SIZE;
+				countFlag.get(1).addAndGet(first);
+				countFlag.get(2).addAndGet(last);
+			
+			}
+			else if( (offset<Constants.BYTE_SIZE) && (sum>Constants.BYTE_SIZE)){
+				while(countFlag.get(0).get()<Constants.BUFFER_SIZE){
+					//等待
+					System.out.println(countFlag.get(0).get());
+					System.out.println("wait0...");
+				}
+				//提交第一部分
+				appendMessage(loopBytes,logName);
+				countFlag.get(0).set(0);
+				int first=Constants.BYTE_SIZE-offset;
+				int last=sum-Constants.BYTE_SIZE;
+				countFlag.get(2).addAndGet(first);
+				countFlag.get(0).addAndGet(last);
+				
+			
+			}
+			else {
+				if(sum<Constants.BUFFER_SIZE){
+					countFlag.get(0).addAndGet(size);
+				}
+				else if(sum<=2*Constants.BUFFER_SIZE) {
+					countFlag.get(1).addAndGet(size);
+				}
+				else if(sum<=Constants.BYTE_SIZE){
+					countFlag.get(2).addAndGet(size);
+				}
+				System.out.print(offset+" ");
+				System.out.println(size);
+				
+			}
+			System.arraycopy(messages, 0 ,loopBytes, offset, size);
+		
+		
+		
+	}
 
 	//最后剩余的不足一个BufferSize大小的通过最后的刷盘写入
 	// for Producer
@@ -69,12 +148,14 @@ public class CommitLog {
 //		String logName = split[0];
 //		System.out.println("a"+logName);
 //		int offset = Integer.valueOf(split[1]);
-//
+//		if(offset==0){
+//			writeName=logName;
+//		}
 //		for (int i = offset; i < offset + size; i++) {
 //			int index = i % Constants.BYTE_SIZE;
 //			int appendId = shouldAppend.get();
 //			if (index == appendId * Constants.BUFFER_SIZE && (i / Constants.BYTE_SIZE) > 0) {
-//				appendMessage(loopBytes, logName);
+//				appendMessage(loopBytes, writeName);
 //			}
 //
 //			else if (index >= 0 && index < Constants.BUFFER_SIZE) {
@@ -91,75 +172,77 @@ public class CommitLog {
 //
 //	}
 	//按照块大小写
-	public void appendMessage(byte[] messages){
-		int size = messages.length;
-		String afterIndex = indexFile.appendIndex(size);
-		String[] split = afterIndex.split(":");
-		String logName = split[0];
-		System.out.println("a"+logName);
-		int offset = Integer.valueOf(split[1]);
-		if(offset==0){
-			writeName=logName;
-		}
-		if(offset+size>= Constants.BYTE_SIZE){
-			int appendId = shouldAppend.get();
+//	public void appendMessage(byte[] messages){
+//		int size = messages.length;
+//		String afterIndex = indexFile.appendIndex(size);
+//		String[] split = afterIndex.split(":");
+//		String logName = split[0];
+//		System.out.println("a"+logName);
+//		int offset = Integer.valueOf(split[1]);
+//		if(offset==0){
+//			writeName=logName;
+//		}
+//		int loopCount=logFileOffset.get();
+//		if(offset+size>= loopCount*Constants.BYTE_SIZE){
+//			int appendId = shouldAppend.get();
 //			while(countFlag.get(appendId).get() < Constants.BUFFER_SIZE){
+//				System.out.println(countFlag.get(appendId).get());
 //			}
-			while(countFlag.get(appendId).get() >= Constants.BUFFER_SIZE){
-				if (appendId == 2) {
-					shouldAppend.set(0);
-				} else {
-					shouldAppend.incrementAndGet();
-				}
-				countFlag.get(appendId).set(0);
-				LogFile willWrite=getLastLogFile();
-				if(!(willWrite.getFileName().equals("LOG"+writeName))){
-					willWrite=getNewLogFile(writeName);
-				}
-				willWrite.doAppend(loopBytes);
-				appendId = shouldAppend.get();
-				
-			}
-			
-		}
-		else{
-			if(offset<=Constants.BUFFER_SIZE){
-				countFlag.get(0).addAndGet(size);
-			}
-			else if(offset<=2*Constants.BUFFER_SIZE) {
-				countFlag.get(1).addAndGet(size);
-			}
-			else if(offset<=Constants.BYTE_SIZE){
-				countFlag.get(2).addAndGet(size);
-			}
-			System.arraycopy(messages, 0 ,loopBytes, offset, size);
-		}
-		
-		
-	}
+//			while(countFlag.get(appendId).get() >= Constants.BUFFER_SIZE){
+//				shouldAppend.updateAndGet(x->(x==2?0:++x));
+////				if (appendId == 2) {
+////					shouldAppend.set(0);
+////				} else {
+////					shouldAppend.incrementAndGet();
+////				}
+//				countFlag.get(appendId).set(0);
+//				LogFile willWrite=getLastLogFile();
+//				if(!(willWrite.getFileName().equals("LOG"+writeName))){
+//					willWrite=getNewLogFile(writeName);
+//				}
+//				willWrite.doAppend(loopBytes);
+//				appendId = shouldAppend.get();
+//				
+//			}
+//			int last=loopCount*Constants.BYTE_SIZE-offset;
+//			if(last<=Constants.BUFFER_SIZE){
+//				countFlag.get(0).addAndGet(size);
+//			}
+//			else if(last<=2*Constants.BUFFER_SIZE) {
+//				countFlag.get(1).addAndGet(size);
+//			}
+//			else if(last<=Constants.BYTE_SIZE){
+//				countFlag.get(2).addAndGet(size);
+//			}
+//			System.arraycopy(messages, 0, loopBytes, offset, last);
+//			System.arraycopy(messages, last, loopBytes, 0, offset+size-loopCount*Constants.BYTE_SIZE);
+//			logFileOffset.incrementAndGet();
+//		}
+//		else{
+//			if(offset<=Constants.BUFFER_SIZE){
+//				countFlag.get(0).addAndGet(size);
+//			}
+//			else if(offset<=2*Constants.BUFFER_SIZE) {
+//				countFlag.get(1).addAndGet(size);
+//			}
+//			else if(offset<=Constants.BYTE_SIZE){
+//				countFlag.get(2).addAndGet(size);
+//			}
+//			System.arraycopy(messages, 0 ,loopBytes, offset, size);
+//		}
+//		
+//	}
+	
+	
 
 	// for Producer
 	private void appendMessage(byte[] messages, String logName) {
-		int appendId = shouldAppend.get();
-
-		while (countFlag.get(appendId).get() >= Constants.BUFFER_SIZE)
-		{
-			if (appendId == 2) {
-				shouldAppend.set(0);
-			} else {
-				shouldAppend.incrementAndGet();
-			}
-			countFlag.get(appendId).set(0);
-			System.out.println("b"+logName);
-			LogFile willWrite=getLastLogFile();
-			if(!(willWrite.getFileName().equals("LOG"+logName))){
-				willWrite=getNewLogFile(logName);
-			}
 		
-			
-			willWrite.doAppend(loopBytes);
-			appendId = shouldAppend.get();
+		LogFile willWrite=getLastLogFile();
+		if(!(willWrite.getFileName().equals("LOG"+logName))){
+			willWrite=getNewLogFile(logName);
 		}
+		willWrite.doAppend(loopBytes);
 	}
 
 	// for Consumer
