@@ -16,6 +16,8 @@ public class CommitLog {
 	private AtomicInteger logFileOffset = new AtomicInteger(0);
 	private ConcurrentHashMap<Integer, AtomicInteger> countFlag = new ConcurrentHashMap<>();
 	private byte[] loopBytes = new byte[Constants.BYTE_SIZE];
+	
+	private String writeName="000000";
 
 	public CommitLog(String path) {
 		this.path = path;
@@ -59,34 +61,81 @@ public class CommitLog {
 
 	//最后剩余的不足一个BufferSize大小的通过最后的刷盘写入
 	// for Producer
-	public void appendMessage(byte[] messages) {
+//	public void appendMessage(byte[] messages) {
+//		int size = messages.length;
+//		// appendIndex是否返回Name待定
+//		String afterIndex = indexFile.appendIndex(size);
+//		String[] split = afterIndex.split(":");
+//		String logName = split[0];
+//		System.out.println("a"+logName);
+//		int offset = Integer.valueOf(split[1]);
+//
+//		for (int i = offset; i < offset + size; i++) {
+//			int index = i % Constants.BYTE_SIZE;
+//			int appendId = shouldAppend.get();
+//			if (index == appendId * Constants.BUFFER_SIZE && (i / Constants.BYTE_SIZE) > 0) {
+//				appendMessage(loopBytes, logName);
+//			}
+//
+//			else if (index >= 0 && index < Constants.BUFFER_SIZE) {
+//				countFlag.get(0).incrementAndGet();
+//			} else if (index >= Constants.BUFFER_SIZE && index < 2 * Constants.BUFFER_SIZE) {
+//				countFlag.get(1).incrementAndGet();
+//			} else if (index >= 2 * Constants.BUFFER_SIZE && index < Constants.BYTE_SIZE) {
+//				countFlag.get(2).incrementAndGet();
+//			}
+//			loopBytes[index] = messages[i - offset];
+//
+//		}
+////		appendMessage(loopBytes, offset);
+//
+//	}
+	//按照块大小写
+	public void appendMessage(byte[] messages){
 		int size = messages.length;
-		// appendIndex是否返回Name待定
 		String afterIndex = indexFile.appendIndex(size);
 		String[] split = afterIndex.split(":");
 		String logName = split[0];
 		System.out.println("a"+logName);
 		int offset = Integer.valueOf(split[1]);
-
-		for (int i = offset; i < offset + size; i++) {
-			int index = i % Constants.BYTE_SIZE;
-			int appendId = shouldAppend.get();
-			if (index == appendId * Constants.BUFFER_SIZE && (i / Constants.BYTE_SIZE) > 0) {
-				appendMessage(loopBytes, logName);
-			}
-
-			else if (index >= 0 && index < Constants.BUFFER_SIZE) {
-				countFlag.get(0).incrementAndGet();
-			} else if (index >= Constants.BUFFER_SIZE && index < 2 * Constants.BUFFER_SIZE) {
-				countFlag.get(1).incrementAndGet();
-			} else if (index >= 2 * Constants.BUFFER_SIZE && index < Constants.BYTE_SIZE) {
-				countFlag.get(2).incrementAndGet();
-			}
-			loopBytes[index] = messages[i - offset];
-
+		if(offset==0){
+			writeName=logName;
 		}
-//		appendMessage(loopBytes, offset);
-
+		if(offset+size>= Constants.BYTE_SIZE){
+			int appendId = shouldAppend.get();
+//			while(countFlag.get(appendId).get() < Constants.BUFFER_SIZE){
+//			}
+			while(countFlag.get(appendId).get() >= Constants.BUFFER_SIZE){
+				if (appendId == 2) {
+					shouldAppend.set(0);
+				} else {
+					shouldAppend.incrementAndGet();
+				}
+				countFlag.get(appendId).set(0);
+				LogFile willWrite=getLastLogFile();
+				if(!(willWrite.getFileName().equals("LOG"+writeName))){
+					willWrite=getNewLogFile(writeName);
+				}
+				willWrite.doAppend(loopBytes);
+				appendId = shouldAppend.get();
+				
+			}
+			
+		}
+		else{
+			if(offset<=Constants.BUFFER_SIZE){
+				countFlag.get(0).addAndGet(size);
+			}
+			else if(offset<=2*Constants.BUFFER_SIZE) {
+				countFlag.get(1).addAndGet(size);
+			}
+			else if(offset<=Constants.BYTE_SIZE){
+				countFlag.get(2).addAndGet(size);
+			}
+			System.arraycopy(messages, 0 ,loopBytes, offset, size);
+		}
+		
+		
 	}
 
 	// for Producer
@@ -106,17 +155,7 @@ public class CommitLog {
 			if(!(willWrite.getFileName().equals("LOG"+logName))){
 				willWrite=getNewLogFile(logName);
 			}
-			
-			
-//			if(logFileOffset.get()>5){
-//				getNewLogFile(logName);
-//				System.out.println(logName);
-//				System.out.println(logName);
-//				logFileOffset.set(0);
-//			}
-//			else { 
-//				logFileOffset.incrementAndGet();
-//			}
+		
 			
 			willWrite.doAppend(loopBytes);
 			appendId = shouldAppend.get();
