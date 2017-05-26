@@ -67,7 +67,7 @@ public class CommitLog {
 		String logName = split[0];
 		System.out.println("a"+logName);
 		int offset = Integer.valueOf(split[1]);
-		int sum=offset+size;
+
 		if(offset==0){
 			writeName=logName;
 		}
@@ -75,8 +75,9 @@ public class CommitLog {
 			offset-=(Constants.BYTE_SIZE);
 			
 		}
+		int sum=offset+size;
 			if( (offset<Constants.BUFFER_SIZE) && (sum>Constants.BUFFER_SIZE)){
-				if(logFileOffset.get()>1){
+				if(logFileOffset.get()>0){
 					while(countFlag.get(1).get()<Constants.BUFFER_SIZE){
 						//等待
 						System.out.println("wait1...");
@@ -93,7 +94,7 @@ public class CommitLog {
 				System.arraycopy(messages, 0 ,loopBytes, offset, size);
 			}
 			else if( (offset<2*Constants.BUFFER_SIZE) && (sum>2*Constants.BUFFER_SIZE)){
-				if(logFileOffset.get()>1){
+				if(logFileOffset.get()>0){
 					while(countFlag.get(2).get()<Constants.BUFFER_SIZE){
 						//等待
 						System.out.println("wait2...");
@@ -120,6 +121,7 @@ public class CommitLog {
 				System.out.println(sum);
 				appendMessage(loopBytes,logName);
 				countFlag.get(0).set(0);
+				logFileOffset.incrementAndGet();
 				int first=Constants.BYTE_SIZE-offset;
 				int last=sum-Constants.BYTE_SIZE;
 				countFlag.get(2).addAndGet(first);
@@ -145,7 +147,6 @@ public class CommitLog {
 				System.arraycopy(messages, 0 ,loopBytes, offset, size);
 			}
 
-		
 		
 		
 	}
