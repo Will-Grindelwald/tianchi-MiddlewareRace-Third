@@ -139,7 +139,7 @@ public class CommitLog {
 			if(fileID.equals(logFile.getFileName()))
 				return logFile.getFileChannel();
 		}
-		return null; // ERROR
+		return null; // ERROR 文件丢失？
 	}
 
 	// for Producer

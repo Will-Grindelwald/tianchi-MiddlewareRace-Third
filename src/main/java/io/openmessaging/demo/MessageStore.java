@@ -43,17 +43,20 @@ public class MessageStore {
 		int offsetInIndexFile = offsets.getOrDefault(bucket, Integer.valueOf(0));
 		FileChannel indexFileChannel = getIndexFileChannel(bucket);
 		byte[] index = readIndexFileBuffer.read(bucket, indexFileChannel, offsetInIndexFile, Constants.INDEX_SIZE);
+		if (index == null)
+			return null;
 
 		// Step 2: 读 Message
 		int offsetInLogFile = Utils.getInt(index, Constants.OFFSET_POS),
 				messageSize = Utils.getInt(index, Constants.SIZE_POS);
 		FileChannel logFileChannel = getLogFileChannelByFileID(bucket,
 				new String(index, Constants.FILEID_POS, Constants.OFFSET_POS - Constants.FILEID_POS));
-		byte[] message = readLogFileBuffer.read(bucket, logFileChannel, offsetInLogFile, messageSize);
+		byte[] messageBytes = readLogFileBuffer.read(bucket, logFileChannel, offsetInLogFile, messageSize);
+		if (messageBytes == null)
+			return null; // ERROR 有 index 无 message
 
-		// TODO 修改 offset
-		offsets.put(bucket, offsetInIndexFile + 30);
-		return bytesToMessage(message);
+		offsets.put(bucket, offsetInIndexFile + Constants.INDEX_SIZE);
+		return bytesToMessage(messageBytes);
 	}
 
 	// for Producer
@@ -223,7 +226,7 @@ public class MessageStore {
 		if (length != 0) {
 			bytesToDefaultKeyValue((DefaultKeyValue) (message.properties()), bytes, pos, length);
 		}
-		return null;
+		return message;
 	}
 
 	// for Consumer
