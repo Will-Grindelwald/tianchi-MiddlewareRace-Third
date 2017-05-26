@@ -59,7 +59,6 @@ public class IndexFile {
 		} else {
 			byteBuffer.flip();
 			byteBuffer.get(previousMessageFileID);
-			System.out.println(new String(previousMessageFileID));
 			Offset = byteBuffer.getInt();
 			previousMessageSize = byteBuffer.getInt();
 			int name = Integer.valueOf(new String(previousMessageFileID));

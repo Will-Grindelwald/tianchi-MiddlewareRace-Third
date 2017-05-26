@@ -54,16 +54,20 @@ public class CommitLog {
 		return logFileLast;
 	}
 
-	public void getNewLogFile(String fileName) {
-		logFileList.add(new LogFile(path, "LOG" + fileName));
+	public LogFile getNewLogFile(String fileName) {
+		LogFile newFile=new LogFile(path, "LOG" + fileName);
+		logFileList.add(newFile);
+		return newFile;
 	}
 
+	//最后剩余的不足一个BufferSize大小的通过最后的刷盘写入
 	public void appendMessage(byte[] messages) {
 		int size = messages.length;
 		// appendIndex是否返回Name待定
 		String afterIndex = indexFile.appendIndex(size);
 		String[] split = afterIndex.split(":");
 		String logName = split[0];
+		System.out.println("a"+logName);
 		int offset = Integer.valueOf(split[1]);
 		
 
@@ -90,11 +94,7 @@ public class CommitLog {
 
 	private void appendMessage(byte[] messages, String logName) {
 		int appendId = shouldAppend.get();
-//		while (countFlag.get(appendId).get() != Constants.BUFFER_SIZE) {
-//				System.out.print(Thread.currentThread().getName()+" ");
-//				System.out.print(appendId+" ");
-//				System.out.println(countFlag.get(appendId).get());
-//		}
+
 		while (countFlag.get(appendId).get() >= Constants.BUFFER_SIZE)
 		{
 			if (appendId == 2) {
@@ -103,26 +103,28 @@ public class CommitLog {
 				shouldAppend.incrementAndGet();
 			}
 			countFlag.get(appendId).set(0);
+			System.out.println("b"+logName);
+			LogFile willWrite=getLastLogFile();
+			if(!(willWrite.getFileName().equals("LOG"+logName))){
+				willWrite=getNewLogFile(logName);
+			}
 			
-//			if(!getLastLogFile().getFileName().equals(logName)){
+			
+//			if(logFileOffset.get()>5){
 //				getNewLogFile(logName);
+//				System.out.println(logName);
+//				System.out.println(logName);
+//				logFileOffset.set(0);
 //			}
-//			if (offset == 0) {
-//				String name = getLastLogFile().getFileName();
-//				getNewLogFile(name);
+//			else { 
+//				logFileOffset.incrementAndGet();
 //			}
-			if(logFileOffset.get()>4){
-				getNewLogFile(logName);
-				System.out.println(logName);
-				logFileOffset.set(0);
-			}
-			else {
-				logFileOffset.incrementAndGet();
-			}
 			
-			getLastLogFile().doAppend(loopBytes);
+			willWrite.doAppend(loopBytes);
+			appendId = shouldAppend.get();
 		}
 	}
+
 
 	public void flush() {
 
