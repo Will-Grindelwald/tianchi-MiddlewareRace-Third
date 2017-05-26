@@ -6,8 +6,6 @@ import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
 
 public class LogFile {
-	public static final int LOG_FILE_SIZE = 18;
-
 	private String path;
 	private String fileName;
 	private RandomAccessFile file;

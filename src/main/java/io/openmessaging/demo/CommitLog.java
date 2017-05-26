@@ -10,16 +10,11 @@ import io.openmessaging.Message;
 
 public class CommitLog {
 
-	public static final long LOG_FILE_SIZE = 100 * 1024 * 1024;
-	private static final int BUFFER_SIZE = 20 * 1024 * 1024;
-	private static final int BYTE_SIZE = 3 * BUFFER_SIZE;
-	private static final int HALFBYTESIZE = BYTE_SIZE / 2;
-
 	private static AtomicInteger shouldAppend = new AtomicInteger(0);
 	
 	private static ConcurrentHashMap<String, AtomicInteger> countFlag = new ConcurrentHashMap<>();
 
-	private byte[] cirleBytes = new byte[BYTE_SIZE];
+	private byte[] cirleBytes = new byte[Constants.BYTE_SIZE];
 
 	private String path;
 	private IndexFile indexFile = null;
@@ -121,6 +116,11 @@ public class CommitLog {
 	}
 
 	public FileChannel getIndexFileChannel() {
+		// TODO
+		return null;
+	}
+
+	public FileChannel getLogFileChannelByFileID(String fileID) {
 		// TODO
 		return null;
 	}

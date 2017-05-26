@@ -1,9 +1,7 @@
 package io.openmessaging.demo;
 
-import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -21,12 +19,6 @@ public class DefaultPullConsumer implements PullConsumer {
 	private Set<String> buckets = new HashSet<>();
 	// 内容同 buckets, list 随机读
 	private List<String> bucketList = new ArrayList<>();
-	// 存 <bucket name, offsetInIndexFile>
-	private HashMap<String, Long> offsets = new HashMap<>();
-
-	private static final int BUFFER_SIZE = 20 * 1024 * 1024;
-	private ReadBuffer readIndexFileBuffer = null;
-	private ReadBuffer readLogFileBuffer = null;
 
 	private int lastIndex = 0;
 
@@ -47,55 +39,19 @@ public class DefaultPullConsumer implements PullConsumer {
 		}
 
 		String bucket;
-		long offsetInIndexFile;
+		int offsetInIndexFile;
 		Message message;
 		// 慢轮询, 不致饿死后面的 topic, 又可提高 page cache 命中
 		for (int index = 0; index < bucketList.size(); index++) {
 			bucket = bucketList.get(lastIndex);
-			offsetInIndexFile = offsets.getOrDefault(bucket, Long.valueOf(0));
-			message = getNewMessage(bucket, offsetInIndexFile);
+			message = messageStore.pullMessage(bucket);
 			if (message != null) {
-				// TODO 修改 offset
-				offsets.put(bucket, offsetInIndexFile + 30);
 				return message;
 			}
 			// 只有不命中时才 lastIndex++, 命中时(此 topic 有新 message)会下一次继续读此 topic
 			lastIndex = (lastIndex + 1) % (bucketList.size());
 		}
 		return null;
-	}
-
-	// 跨过 messageStore, 利用 MappedBuffer 直接读 message
-	private Message getNewMessage(String bucket, long offsetInIndexFile) {
-		// TODO
-		// 第一次
-		if (readIndexFileBuffer == null) {
-			FileChannel indexFileChannel = messageStore.getIndexFileChannel(bucket);
-			readIndexFileBuffer = new ReadBuffer(indexFileChannel, BUFFER_SIZE);
-			// TODO 测试 load 与 不 load 谁快
-			// readIndexFileBuffer.buffer.load();
-		}
-
-		// TODO 边界用 >= ? 待测
-		if (offsetInIndexFile > readIndexFileBuffer.offsetInFile) {
-			// readIndexFileBuffer 缓存不命中
-
-		} else {
-			// readIndexFileBuffer 缓存命中
-			int size = IndexFile.INDEX_SIZE;
-			if(size > readIndexFileBuffer.offsetInFile - offsetInIndexFile) {
-				// 要取得 Index 是 Buffer 最后一条 Index 且内容不全
-				
-			} else {
-				// other, 正常读
-				byte[] fileID = new byte[6];
-				readIndexFileBuffer.buffer.get(fileID);
-				long offsetInLogFile = readIndexFileBuffer.buffer.getLong();
-				int messageSize = readIndexFileBuffer.buffer.getInt();
-			}
-		}
-
-		return messageStore.pullMessage(bucket, offsetInIndexFile);
 	}
 
 	@Override

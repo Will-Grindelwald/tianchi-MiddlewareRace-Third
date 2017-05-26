@@ -17,11 +17,6 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 // TODO 将 offset 改为 int ?
 public class IndexFile {
-	public static final int INDEX_SIZE = 18; // 6 + 8 + 4
-	public static final int INDEX_FILE_SIZE = INDEX_SIZE * 1024 * 1024;
-	// private static AtomicInteger count = new AtomicInteger(0);
-	// private static final String NAMEFIRST = "LOG";
-
 	// 一个读写锁???
 	private ReentrantLock fileWriteLock = new ReentrantLock();
 	
@@ -30,7 +25,7 @@ public class IndexFile {
 	private RandomAccessFile file;
 	private FileChannel fileChannel;
 	private MappedByteBuffer writeMappedByteBuffer;
-	private ByteBuffer byteBuffer = ByteBuffer.allocate(INDEX_SIZE);
+	private ByteBuffer byteBuffer = ByteBuffer.allocate(Constants.INDEX_SIZE);
 
 	public IndexFile(String path, String fileName) {
 		this.path = path;
@@ -42,7 +37,7 @@ public class IndexFile {
 			}
 			this.file = new RandomAccessFile(file, "rw");
 			this.fileChannel = this.file.getChannel();
-			writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0, INDEX_FILE_SIZE);
+			writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0, Constants.BUFFER_SIZE);
 		} catch (IOException e) {
 			throw new ClientOMSException("IndexFile create failure", e);
 		}
@@ -54,7 +49,7 @@ public class IndexFile {
 		long Offset;
 		int previousMessageSize;
 		fileWriteLock.lock();
-		if (byteBuffer.remaining() == INDEX_SIZE) {
+		if (byteBuffer.remaining() == Constants.INDEX_SIZE) {
 			fileID = "000000";
 			Offset = 0L;
 			previousMessageSize = 0;
@@ -64,7 +59,7 @@ public class IndexFile {
 			previousMessageSize = byteBuffer.getInt();
 			int name = Integer.valueOf(new String(previousMessageFileID));
 			Offset += previousMessageSize;
-			if (Offset + size > CommitLog.LOG_FILE_SIZE) {
+			if (Offset + size > Constants.LOG_FILE_SIZE) {
 				fileID = String.format("%06d", name + 1);
 				Offset = 0;
 			} else {
