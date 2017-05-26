@@ -18,8 +18,6 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 // TODO 将 offset 改为 int ?
 public class IndexFile {
-	private static AtomicInteger count = new AtomicInteger(0);
-
 	// 一个读写锁???
 	private ReentrantLock fileWriteLock = new ReentrantLock();
 
@@ -28,7 +26,8 @@ public class IndexFile {
 	private RandomAccessFile file;
 	private FileChannel fileChannel;
 	private MappedByteBuffer writeMappedByteBuffer;
-	private ByteBuffer byteBuffer = ByteBuffer.allocate(Constants.INDEX_SIZE);
+	private ByteBuffer lastIndex = ByteBuffer.allocate(Constants.INDEX_SIZE);
+	private static AtomicInteger count = new AtomicInteger(0);
 
 	public IndexFile(String path, String fileName) {
 		this.path = path;
@@ -40,28 +39,30 @@ public class IndexFile {
 			}
 			this.file = new RandomAccessFile(file, "rw");
 			this.fileChannel = this.file.getChannel();
-			writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0, Constants.INDEX_WRITE_BUFFER_SIZE);
+			writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0,
+					Constants.INDEX_WRITE_BUFFER_SIZE);
 		} catch (IOException e) {
 			throw new ClientOMSException("IndexFile create failure", e);
 		}
 	}
 
+	// for Producer
 	public String appendIndex(int size) {
 		fileWriteLock.lock();
 		String fileID;
 		byte[] previousMessageFileID = new byte[6];
 		int Offset;
 		int previousMessageSize;
-		if (byteBuffer.remaining() == Constants.INDEX_SIZE) {
+		if (lastIndex.remaining() == Constants.INDEX_SIZE) {
 			fileID = "000000";
 			Offset = 0;
 			previousMessageSize = 0;
 		} else {
-			byteBuffer.flip();
-			byteBuffer.get(previousMessageFileID);
+			lastIndex.flip();
+			lastIndex.get(previousMessageFileID);
 			System.out.println(new String(previousMessageFileID));
-			Offset = byteBuffer.getInt();
-			previousMessageSize = byteBuffer.getInt();
+			Offset = lastIndex.getInt();
+			previousMessageSize = lastIndex.getInt();
 			int name = Integer.valueOf(new String(previousMessageFileID));
 			Offset += previousMessageSize;
 			if (Offset + size > Constants.LOG_FILE_SIZE) {
@@ -70,29 +71,31 @@ public class IndexFile {
 			} else {
 				fileID = String.format("%06d", name);
 			}
-			byteBuffer.clear();
+			lastIndex.clear();
 		}
-		byteBuffer.put(fileID.getBytes());
-		byteBuffer.putInt(Offset);
-		byteBuffer.putInt(size);
-		byteBuffer.flip();
-		if (writeMappedByteBuffer.remaining() < byteBuffer.limit()) {
+		lastIndex.put(fileID.getBytes());
+		lastIndex.putInt(Offset);
+		lastIndex.putInt(size);
+		lastIndex.flip();
+		if (writeMappedByteBuffer.remaining() < lastIndex.limit()) {
 			flush();
 		}
-		writeMappedByteBuffer.put(byteBuffer);
+		writeMappedByteBuffer.put(lastIndex);
 		fileWriteLock.unlock();
 		return fileID + ":" + Offset;
 	}
 
-	public byte[] readIndexByOffset(long offset) {
-
-		return null;
-	}
-
+	// for Producer
 	public String getFileName() {
 		return this.fileName;
 	}
 
+	// for Consumer
+	public FileChannel getFileChannel() {
+		return this.fileChannel;
+	}
+
+	// for Producer
 	public void flush() {
 		// writeMappedByteBuffer.flip();
 		writeMappedByteBuffer.force();
@@ -104,7 +107,6 @@ public class IndexFile {
 			System.out.println("MappedByteBuffer Exception");
 			e.printStackTrace();
 		}
-
 	}
 
 }

@@ -6,17 +6,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import io.openmessaging.Message;
-
 public class CommitLog {
 
 	private String path;
-	private IndexFile indexFile = null;
+	private IndexFile indexFile;
 	private CopyOnWriteArrayList<LogFile> logFileList = new CopyOnWriteArrayList<>();
 
 	private AtomicInteger shouldAppend = new AtomicInteger(0);
 	private AtomicInteger logFileOffset = new AtomicInteger(0);
-	
 	private ConcurrentHashMap<Integer, AtomicInteger> countFlag = new ConcurrentHashMap<>();
 	private byte[] loopBytes = new byte[Constants.BYTE_SIZE];
 
@@ -36,28 +33,29 @@ public class CommitLog {
 		for (int i = 0; i < 3; i++) {
 			countFlag.put(i, new AtomicInteger(0));
 		}
-
 	}
 
+	// for Producer
 	public LogFile getLastLogFile() {
 		LogFile logFileLast = null;
 		// 可能会有异常
-		
+
 		if (!logFileList.isEmpty()) {
 			logFileLast = logFileList.get(logFileList.size() - 1);
 
-		}
-		else {
-			logFileLast=new LogFile(path, "LOG" + "000000");
+		} else {
+			logFileLast = new LogFile(path, "LOG" + "000000");
 			logFileList.add(logFileLast);
 		}
 		return logFileLast;
 	}
 
+	// for Producer
 	public void getNewLogFile(String fileName) {
 		logFileList.add(new LogFile(path, "LOG" + fileName));
 	}
 
+	// for Producer
 	public void appendMessage(byte[] messages) {
 		int size = messages.length;
 		// appendIndex是否返回Name待定
@@ -65,7 +63,6 @@ public class CommitLog {
 		String[] split = afterIndex.split(":");
 		String logName = split[0];
 		int offset = Integer.valueOf(split[1]);
-		
 
 		for (int i = offset; i < offset + size; i++) {
 			int index = i % Constants.BYTE_SIZE;
@@ -88,6 +85,7 @@ public class CommitLog {
 
 	}
 
+	// for Producer
 	private void appendMessage(byte[] messages, String logName) {
 		int appendId = shouldAppend.get();
 //		while (countFlag.get(appendId).get() != Constants.BUFFER_SIZE) {
@@ -124,31 +122,27 @@ public class CommitLog {
 		}
 	}
 
-	public void flush() {
-
-	}
-
-	public void getLogFileByOffset() {
-
-	}
-
-	public void getMessage() {
-
-	}
-
-	public Message getNewMessage(long offset) {
-		byte[] index = indexFile.readIndexByOffset(offset);
-
-		return null;
-	}
-
+	// for Consumer
 	public FileChannel getIndexFileChannel() {
-		// TODO
-		return null;
+		return indexFile.getFileChannel();
 	}
 
+	// for Consumer
 	public FileChannel getLogFileChannelByFileID(String fileID) {
+		for (LogFile logFile : logFileList) {
+			if(fileID.equals(logFile.getFileName()))
+				return logFile.getFileChannel();
+		}
+		// twins loop for ...
+		for (LogFile logFile : logFileList) {
+			if(fileID.equals(logFile.getFileName()))
+				return logFile.getFileChannel();
+		}
+		return null; // ERROR
+	}
+
+	// for Producer
+	public void flush() {
 		// TODO
-		return null;
 	}
 }
