@@ -90,7 +90,7 @@ public class MessageStore {
 		return result;
 	}
 
-	public static byte[] defaultKeyValueToBytes(DefaultKeyValue kv) {
+	public byte[] defaultKeyValueToBytes(DefaultKeyValue kv) {
 		if (kv == null) {
 			return new byte[0];
 		}
@@ -107,10 +107,10 @@ public class MessageStore {
 		return null;
 	}
 
-	public static byte[] messageToBytes(Message message) {
+	public byte[] messageToBytes(Message message) {
 		// TODO 添加数据压缩
-		byte[] byteHeaders = defaultKeyValueToBytes((DefaultKeyValue) (message.headers()));
-		byte[] byteProperties = defaultKeyValueToBytes((DefaultKeyValue) message.properties());
+		byte[] byteHeaders = defaultKeyValueToBytes0((DefaultKeyValue) (message.headers()));
+		byte[] byteProperties = defaultKeyValueToBytes0((DefaultKeyValue) message.properties());
 		byte[] byteBody = ((BytesMessage) message).getBody();
 		// byteBody.length
 		byte[] bytes = Arrays.copyOf(Utils.intToByteArray(byteBody.length),
@@ -128,11 +128,11 @@ public class MessageStore {
 		return bytes;
 	}
 
-	public static DefaultKeyValue bytesToDefaultKeyValue(DefaultKeyValue kv, byte[] kvBytes, int offset, int length) {
+	public DefaultKeyValue bytesToDefaultKeyValue(DefaultKeyValue kv, byte[] kvBytes, int offset, int length) {
 		return kv;
 	}
 
-	public static Message bytesToMessage(byte[] bytes) {
+	public Message bytesToMessage(byte[] bytes) {
 		// TODO 添加数据解压缩
 		// byteBody.length
 		int length = Utils.getInt(bytes, 0), pos = 4;
