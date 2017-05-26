@@ -12,12 +12,6 @@ import io.openmessaging.Message;
 
 public class MessageStore {
 
-	// private Map<String, ArrayList<Message>> messageBuckets = new HashMap<>();
-	// private Map<String, HashMap<String, Integer>> queueOffsets = new
-	// HashMap<>();
-
-	// private boolean flag = false;
-
 	private String path;
 
 	// 存 <bucket name, offsetInIndexFile>
@@ -50,6 +44,9 @@ public class MessageStore {
 	}
 
 	public static byte[] defaultKeyValueToBytes(DefaultKeyValue kv) {
+		if (kv == null) {
+			return null;
+		}
 		ByteArrayOutputStream bout = new ByteArrayOutputStream();
 		try (ObjectOutputStream out = new ObjectOutputStream(bout)) {
 			out.writeObject(kv.getKVS());
@@ -64,13 +61,22 @@ public class MessageStore {
 	}
 
 	public static byte[] messageToBytes(Message message) {
-		// TODO 添加数据压缩
+		// TODO 1,*判断各字段是否为空*
+		// 2,添加数据压缩
 		byte[] byteHeaders = defaultKeyValueToBytes((DefaultKeyValue) (message.headers()));
-		byte[] byteProperties = defaultKeyValueToBytes((DefaultKeyValue) message.properties());
+		// byte[] byteProperties = defaultKeyValueToBytes((DefaultKeyValue)
+		// message.properties());
 		byte[] byteBody = ((BytesMessage) message).getBody();
-		byte[] bytes = Arrays.copyOf(byteHeaders, byteHeaders.length + byteProperties.length + byteBody.length);
-		System.arraycopy(byteProperties, 0, bytes, byteHeaders.length, byteProperties.length);
-		System.arraycopy(byteBody, 0, bytes, byteHeaders.length + byteProperties.length, byteBody.length);
+
+		// byte[] bytes = Arrays.copyOf(byteHeaders, byteHeaders.length +
+		// byteProperties.length + byteBody.length);
+		// System.arraycopy(byteProperties, 0, bytes, byteHeaders.length,
+		// byteProperties.length);
+		// System.arraycopy(byteBody, 0, bytes, byteHeaders.length +
+		// byteProperties.length, byteBody.length);
+		byte[] bytes = Arrays.copyOf(byteHeaders, byteHeaders.length + byteBody.length);
+		System.arraycopy(byteBody, 0, bytes, byteHeaders.length, byteBody.length);
+
 		return bytes;
 	}
 

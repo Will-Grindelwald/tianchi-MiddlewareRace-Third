@@ -12,6 +12,7 @@ public class CommitLogHandler {
 		if (handler.containsKey(name)) {
 			return handler.get(name);
 		}
-		return handler.put(name, new CommitLog(path + "/" + name));
+		handler.put(name, new CommitLog(path + "/" + name));
+		return handler.get(name);
 	}
 }

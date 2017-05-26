@@ -6,20 +6,23 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * 索引文件结构：
- * --------------------------
- * |fileID|offset|mesagesize|
- * |000000|long  |int       |
- * --------------------------
+ *  -------------------------- 
+ *  |fileID|offset|mesagesize|
+ *  |000000|long|int | 
+ *  --------------------------
  */
 // TODO 将 offset 改为 int ?
 public class IndexFile {
+	private static AtomicInteger count = new AtomicInteger(0);
+
 	// 一个读写锁???
 	private ReentrantLock fileWriteLock = new ReentrantLock();
-	
+
 	private String path;
 	private String fileName;
 	private RandomAccessFile file;
@@ -44,17 +47,18 @@ public class IndexFile {
 	}
 
 	public String appendIndex(int size) {
+		fileWriteLock.lock();
 		String fileID;
 		byte[] previousMessageFileID = new byte[6];
 		long Offset;
 		int previousMessageSize;
-		fileWriteLock.lock();
 		if (byteBuffer.remaining() == Constants.INDEX_SIZE) {
 			fileID = "000000";
 			Offset = 0L;
 			previousMessageSize = 0;
 		} else {
 			byteBuffer.get(previousMessageFileID);
+			System.out.println(new String(previousMessageFileID));
 			Offset = byteBuffer.getLong();
 			previousMessageSize = byteBuffer.getInt();
 			int name = Integer.valueOf(new String(previousMessageFileID));
@@ -75,6 +79,7 @@ public class IndexFile {
 			flush();
 		}
 		writeMappedByteBuffer.put(byteBuffer);
+		byteBuffer.flip();
 		fileWriteLock.unlock();
 		return fileID + ":" + Offset;
 	}
@@ -84,23 +89,21 @@ public class IndexFile {
 		return null;
 	}
 
-	public String getFileName(){
+	public String getFileName() {
 		return this.fileName;
 	}
 
 	public void flush() {
-		writeMappedByteBuffer.flip();
+		// writeMappedByteBuffer.flip();
 		writeMappedByteBuffer.force();
 		writeMappedByteBuffer.clear();
-		// try {
-		// int i = count.incrementAndGet();
-		// writeMappedByteBuffer =
-		// fileChannel.map(FileChannel.MapMode.READ_WRITE, i * INDEXSIZE, 2 * i
-		// * INDEXSIZE);
-		// } catch (IOException e) {
-		// System.out.println("MappedByteBuffer Exception");
-		// e.printStackTrace();
-		// }
+		try {
+			writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE,
+					count.incrementAndGet() * Constants.BUFFER_SIZE, Constants.BUFFER_SIZE);
+		} catch (IOException e) {
+			System.out.println("MappedByteBuffer Exception");
+			e.printStackTrace();
+		}
 
 	}
 
