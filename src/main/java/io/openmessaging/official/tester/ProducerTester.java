@@ -22,7 +22,7 @@ public class ProducerTester {
         Random random = new Random();
         Producer producer = null;
         int sendNum = 0;
-        Map<String, Integer> offsets = new HashMap<>();
+        Map<String, byte[]> offsets = new HashMap<>();
         public ProducerTask(String label) {
             this.label = label;
             init();
@@ -43,9 +43,13 @@ public class ProducerTester {
                 logger.error("please check the package name and class name:", e);
             }
             //init offsets
+            byte[] news=new byte[1024*256];
+            for(int i=0;i<1024*256;i++){
+            	news[i]='q';
+            }
             for (int i = 0; i < 10; i++) {
-                offsets.put("TOPIC_" + i, 0);
-                offsets.put("QUEUE_" + i, 0);
+                offsets.put("TOPIC_" + i,news);
+                offsets.put("QUEUE_" + i,news);
             }
 
         }
@@ -60,9 +64,9 @@ public class ProducerTester {
                     } else {
                         queueOrTopic = "TOPIC_" + random.nextInt(10);
                     }
-                    Message message = producer.createBytesMessageToQueue(queueOrTopic, (label + "_" + offsets.get(queueOrTopic)).getBytes());
+                    Message message = producer.createBytesMessageToQueue(queueOrTopic, (offsets.get(queueOrTopic)));
                     logger.debug("queueOrTopic:{} offset:{}", queueOrTopic, label + "_" + offsets.get(queueOrTopic));
-                    offsets.put(queueOrTopic, offsets.get(queueOrTopic) + 1);
+                    offsets.put(queueOrTopic, offsets.get(queueOrTopic));
                     producer.send(message);
                     sendNum++;
                     if (sendNum >= Constants.PRO_MAX) {
@@ -90,6 +94,7 @@ public class ProducerTester {
             ts[i].join();
         }
         long end = System.currentTimeMillis();
+        System.out.println(end - start);
         logger.info("Produce Finished, Cost {} ms", end - start);
     }
 }

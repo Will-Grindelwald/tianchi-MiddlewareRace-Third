@@ -8,7 +8,7 @@ import java.nio.channels.FileChannel;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class LogFile {
-	private static AtomicInteger offset = new AtomicInteger(0);
+	private AtomicInteger offset = new AtomicInteger(0);
 	private String path;
 	private String fileName;
 	private RandomAccessFile file;
@@ -36,13 +36,14 @@ public class LogFile {
 			if (offset.get() > 4) {
 				offset.set(0);
 			}
-			writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, offset.get(),
+			writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, offset.get()*Constants.BUFFER_SIZE,
 					Constants.BUFFER_SIZE);
-			offset.incrementAndGet();
+			
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		writeMappedByteBuffer.put(bytes);
+		writeMappedByteBuffer.put(bytes,offset.get()*Constants.BUFFER_SIZE,Constants.BUFFER_SIZE);
+		offset.incrementAndGet();
 		writeMappedByteBuffer.clear();
 	}
 

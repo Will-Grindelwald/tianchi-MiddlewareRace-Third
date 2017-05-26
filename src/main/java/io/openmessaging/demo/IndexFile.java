@@ -50,16 +50,17 @@ public class IndexFile {
 		fileWriteLock.lock();
 		String fileID;
 		byte[] previousMessageFileID = new byte[6];
-		long Offset;
+		int Offset;
 		int previousMessageSize;
 		if (byteBuffer.remaining() == Constants.INDEX_SIZE) {
 			fileID = "000000";
-			Offset = 0L;
+			Offset = 0;
 			previousMessageSize = 0;
 		} else {
+			byteBuffer.flip();
 			byteBuffer.get(previousMessageFileID);
 			System.out.println(new String(previousMessageFileID));
-			Offset = byteBuffer.getLong();
+			Offset = byteBuffer.getInt();
 			previousMessageSize = byteBuffer.getInt();
 			int name = Integer.valueOf(new String(previousMessageFileID));
 			Offset += previousMessageSize;
@@ -72,14 +73,13 @@ public class IndexFile {
 			byteBuffer.clear();
 		}
 		byteBuffer.put(fileID.getBytes());
-		byteBuffer.putLong(Offset);
+		byteBuffer.putInt(Offset);
 		byteBuffer.putInt(size);
 		byteBuffer.flip();
 		if (writeMappedByteBuffer.remaining() < byteBuffer.limit()) {
 			flush();
 		}
 		writeMappedByteBuffer.put(byteBuffer);
-		byteBuffer.flip();
 		fileWriteLock.unlock();
 		return fileID + ":" + Offset;
 	}

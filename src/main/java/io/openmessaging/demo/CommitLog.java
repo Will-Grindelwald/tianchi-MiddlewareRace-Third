@@ -14,8 +14,10 @@ public class CommitLog {
 	private IndexFile indexFile = null;
 	private CopyOnWriteArrayList<LogFile> logFileList = new CopyOnWriteArrayList<>();
 
-	private static AtomicInteger shouldAppend = new AtomicInteger(0);
-	private static ConcurrentHashMap<Integer, AtomicInteger> countFlag = new ConcurrentHashMap<>();
+	private AtomicInteger shouldAppend = new AtomicInteger(0);
+	private AtomicInteger logFileOffset = new AtomicInteger(0);
+	
+	private ConcurrentHashMap<Integer, AtomicInteger> countFlag = new ConcurrentHashMap<>();
 	private byte[] loopBytes = new byte[Constants.BYTE_SIZE];
 
 	public CommitLog(String path) {
@@ -32,7 +34,7 @@ public class CommitLog {
 			logFileList.add(new LogFile(path, logFileName));
 		}
 		for (int i = 0; i < 3; i++) {
-			countFlag.put(0, new AtomicInteger(0));
+			countFlag.put(i, new AtomicInteger(0));
 		}
 
 	}
@@ -40,9 +42,14 @@ public class CommitLog {
 	public LogFile getLastLogFile() {
 		LogFile logFileLast = null;
 		// 可能会有异常
+		
 		if (!logFileList.isEmpty()) {
 			logFileLast = logFileList.get(logFileList.size() - 1);
 
+		}
+		else {
+			logFileLast=new LogFile(path, "LOG" + "000000");
+			logFileList.add(logFileLast);
 		}
 		return logFileLast;
 	}
@@ -53,17 +60,18 @@ public class CommitLog {
 
 	public void appendMessage(byte[] messages) {
 		int size = messages.length;
-		System.out.println(size);
 		// appendIndex是否返回Name待定
 		String afterIndex = indexFile.appendIndex(size);
 		String[] split = afterIndex.split(":");
 		String logName = split[0];
 		int offset = Integer.valueOf(split[1]);
+		
+
 		for (int i = offset; i < offset + size; i++) {
 			int index = i % Constants.BYTE_SIZE;
 			int appendId = shouldAppend.get();
 			if (index == appendId * Constants.BUFFER_SIZE && (i / Constants.BYTE_SIZE) > 0) {
-				appendMessage(loopBytes, offset);
+				appendMessage(loopBytes, logName);
 			}
 
 			else if (index >= 0 && index < Constants.BUFFER_SIZE) {
@@ -76,15 +84,18 @@ public class CommitLog {
 			loopBytes[index] = messages[i - offset];
 
 		}
-		appendMessage(loopBytes, offset);
+//		appendMessage(loopBytes, offset);
 
 	}
 
-	private void appendMessage(byte[] messages, int offset) {
+	private void appendMessage(byte[] messages, String logName) {
 		int appendId = shouldAppend.get();
-		while (countFlag.get(appendId).get() != Constants.BUFFER_SIZE) {
-
-		}
+//		while (countFlag.get(appendId).get() != Constants.BUFFER_SIZE) {
+//				System.out.print(Thread.currentThread().getName()+" ");
+//				System.out.print(appendId+" ");
+//				System.out.println(countFlag.get(appendId).get());
+//		}
+		while (countFlag.get(appendId).get() >= Constants.BUFFER_SIZE)
 		{
 			if (appendId == 2) {
 				shouldAppend.set(0);
@@ -92,11 +103,24 @@ public class CommitLog {
 				shouldAppend.incrementAndGet();
 			}
 			countFlag.get(appendId).set(0);
-			if (offset == 0) {
-				String name = getLastLogFile().getFileName();
-				getNewLogFile(name);
+			
+//			if(!getLastLogFile().getFileName().equals(logName)){
+//				getNewLogFile(logName);
+//			}
+//			if (offset == 0) {
+//				String name = getLastLogFile().getFileName();
+//				getNewLogFile(name);
+//			}
+			if(logFileOffset.get()>4){
+				getNewLogFile(logName);
+				System.out.println(logName);
+				logFileOffset.set(0);
 			}
-			logFileList.get(logFileList.size() - 1).doAppend(loopBytes);
+			else {
+				logFileOffset.incrementAndGet();
+			}
+			
+			getLastLogFile().doAppend(loopBytes);
 		}
 	}
 
