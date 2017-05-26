@@ -5,12 +5,12 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.Arrays;
 import java.util.HashMap;
 
 import io.openmessaging.BytesMessage;
 import io.openmessaging.Message;
 
+// 一个 Producer/Consumer 一个，不会有并发
 public class MessageStore {
 
 	private String path;
@@ -57,6 +57,35 @@ public class MessageStore {
 
 		offsets.put(bucket, offsetInIndexFile + Constants.INDEX_SIZE);
 		return bytesToMessage(messageBytes);
+	}
+
+	// for Producer
+	/**
+	 * message 结构
+	 *  ------------------------------------------------------------------------
+	 *  |body.length| body |headers.length|headers|properties.length|properties|
+	 *  |int        |byte[]|int           |byte[] |int              |byte[]    |
+	 *  ------------------------------------------------------------------------
+	 */
+	public byte[] messageToBytes(Message message) {
+		byte[] byteHeaders = defaultKeyValueToBytes0((DefaultKeyValue) (message.headers()));
+		byte[] byteProperties = defaultKeyValueToBytes0((DefaultKeyValue) message.properties());
+		byte[] byteBody = ((BytesMessage) message).getBody();
+		byte[] result = new byte[3 * 4 + byteBody.length + byteHeaders.length + byteProperties.length];
+		int pos = 0;
+		Utils.intToByteArray(byteBody.length, result, pos); // byteBody.length
+		pos += 4;
+		System.arraycopy(byteBody, 0, result, pos, byteBody.length); // byteBody
+		pos += byteBody.length;
+		Utils.intToByteArray(byteHeaders.length, result, pos); // byteHeaders.length
+		pos += 4;
+		System.arraycopy(byteHeaders, 0, result, pos, byteHeaders.length); // byteHeaders
+		pos += byteHeaders.length;
+		Utils.intToByteArray(byteProperties.length, result, pos); // byteProperties.length
+		pos += 4;
+		System.arraycopy(byteProperties, 0, result, pos, byteProperties.length); // byteProperties
+		// TODO 添加数据压缩
+		return result;
 	}
 
 	// for Producer
@@ -122,32 +151,27 @@ public class MessageStore {
 		return null;
 	}
 
-	// for Producer
-	public byte[] messageToBytes(Message message) {
-		// TODO 添加数据压缩
-		int pos = 0;
-		byte[] byteHeaders = defaultKeyValueToBytes0((DefaultKeyValue) (message.headers()));
-		byte[] byteProperties = defaultKeyValueToBytes0((DefaultKeyValue) message.properties());
-		byte[] byteBody = ((BytesMessage) message).getBody();
-		// byteBody.length
-		byte[] bytes = Arrays.copyOf(Utils.intToByteArray(byteBody.length),
-				3 * 4 + byteBody.length + byteHeaders.length + byteProperties.length);
+	// for Consumer
+	// message 结构见 messageToBytes
+	public Message bytesToMessage(byte[] bytes) {
+		// TODO 添加数据解压缩
+		int length = Utils.getInt(bytes, 0), pos = 4; // byteBody.length
+		byte[] body = new byte[length];
+		System.arraycopy(bytes, pos, body, 0, length); // byteBody
+		DefaultBytesMessage message = new DefaultBytesMessage(body);
+		pos += length;
+		length = Utils.getInt(bytes, pos); // byteHeaders.length
 		pos += 4;
-		// byteBody
-		System.arraycopy(byteBody, 0, bytes, pos, byteBody.length);
-		pos += byteBody.length;
-		// byteHeaders.length
-		Utils.intToByteArray(byteHeaders.length, bytes, pos);
+		if (length != 0) { // byteHeaders
+			bytesToDefaultKeyValue((DefaultKeyValue) (message.headers()), bytes, pos, length);
+			pos += length;
+		}
+		length = Utils.getInt(bytes, pos); // byteProperties.length
 		pos += 4;
-		// byteHeaders
-		System.arraycopy(byteHeaders, 0, bytes, pos, byteHeaders.length);
-		pos += byteHeaders.length;
-		// byteProperties.length
-		Utils.intToByteArray(byteProperties.length, bytes, pos);
-		pos += 4;
-		// byteProperties
-		System.arraycopy(byteProperties, 0, bytes, pos, byteProperties.length);
-		return bytes;
+		if (length != 0) { // byteProperties
+			bytesToDefaultKeyValue((DefaultKeyValue) (message.properties()), bytes, pos, length);
+		}
+		return message;
 	}
 
 	// for Consumer
@@ -196,37 +220,12 @@ public class MessageStore {
 				offset += intValue;
 				kv.put(key, stringValue);
 				break;
+			default:
+				System.out.println("ERROR: bytesToDefaultKeyValue");
+				break;
 			}
 		}
 		return kv;
-	}
-
-	// for Consumer
-	public Message bytesToMessage(byte[] bytes) {
-		// TODO 添加数据解压缩
-		// byteBody.length
-		int length = Utils.getInt(bytes, 0), pos = 4;
-		// byteBody
-		byte[] body = new byte[length];
-		System.arraycopy(bytes, pos, body, 0, length);
-		DefaultBytesMessage message = new DefaultBytesMessage(body);
-		pos += length;
-		// byteHeaders.length
-		length = Utils.getInt(bytes, pos);
-		pos += 4;
-		// byteHeaders
-		if (length != 0) {
-			bytesToDefaultKeyValue((DefaultKeyValue) (message.headers()), bytes, pos, length);
-			pos += length;
-		}
-		// byteProperties.length
-		length = Utils.getInt(bytes, 4 + length);
-		pos += 4;
-		// byteProperties
-		if (length != 0) {
-			bytesToDefaultKeyValue((DefaultKeyValue) (message.properties()), bytes, pos, length);
-		}
-		return message;
 	}
 
 	// for Consumer

@@ -13,21 +13,22 @@ import java.util.concurrent.locks.ReentrantLock;
  * 索引文件结构：
  *  -------------------------- 
  *  |fileID|offset|mesagesize|
- *  |000000|long|int | 
+ *  |000000|int   |int       | 
  *  --------------------------
  */
 // TODO 将 offset 改为 int ?
+// 全局唯一, 小心并发
 public class IndexFile {
 	// 一个读写锁???
 	private ReentrantLock fileWriteLock = new ReentrantLock();
 
-	private String path;
-	private String fileName;
-	private RandomAccessFile file;
-	private FileChannel fileChannel;
+	private final String path;
+	private final String fileName;
+	private final RandomAccessFile file;
+	private final FileChannel fileChannel;
 	private MappedByteBuffer writeMappedByteBuffer;
-	private ByteBuffer lastIndex = ByteBuffer.allocate(Constants.INDEX_SIZE);
-	private static AtomicInteger count = new AtomicInteger(0);
+	private final ByteBuffer lastIndex = ByteBuffer.allocate(Constants.INDEX_SIZE);
+	private final static AtomicInteger count = new AtomicInteger(0);
 
 	public IndexFile(String path, String fileName) {
 		this.path = path;
