@@ -7,7 +7,7 @@ import io.openmessaging.Message;
 public class DefaultBytesMessage implements BytesMessage {
 
 	private KeyValue headers = new DefaultKeyValue();
-	private KeyValue properties;
+	private KeyValue properties = new DefaultKeyValue();
 	private byte[] body;
 
 	public DefaultBytesMessage(byte[] body) {
@@ -61,32 +61,24 @@ public class DefaultBytesMessage implements BytesMessage {
 
 	@Override
 	public Message putProperties(String key, int value) {
-		if (properties == null)
-			properties = new DefaultKeyValue();
 		properties.put(key, value);
 		return this;
 	}
 
 	@Override
 	public Message putProperties(String key, long value) {
-		if (properties == null)
-			properties = new DefaultKeyValue();
 		properties.put(key, value);
 		return this;
 	}
 
 	@Override
 	public Message putProperties(String key, double value) {
-		if (properties == null)
-			properties = new DefaultKeyValue();
 		properties.put(key, value);
 		return this;
 	}
 
 	@Override
 	public Message putProperties(String key, String value) {
-		if (properties == null)
-			properties = new DefaultKeyValue();
 		properties.put(key, value);
 		return this;
 	}
