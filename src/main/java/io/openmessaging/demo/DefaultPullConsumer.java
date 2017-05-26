@@ -74,13 +74,26 @@ public class DefaultPullConsumer implements PullConsumer {
 			readIndexFileBuffer = new ReadBuffer(indexFileChannel, BUFFER_SIZE);
 			// TODO 测试 load 与 不 load 谁快
 			// readIndexFileBuffer.buffer.load();
-
 		}
-		// readIndexFileBuffer 缓存不命中
-		// if()
 
-		// readIndexFileBuffer 缓存命中
-		// readIndexFileBuffer.
+		// TODO 边界用 >= ? 待测
+		if (offsetInIndexFile > readIndexFileBuffer.offsetInFile) {
+			// readIndexFileBuffer 缓存不命中
+
+		} else {
+			// readIndexFileBuffer 缓存命中
+			int size = IndexFile.INDEX_SIZE;
+			if(size > readIndexFileBuffer.offsetInFile - offsetInIndexFile) {
+				// 要取得 Index 是 Buffer 最后一条 Index 且内容不全
+				
+			} else {
+				// other, 正常读
+				byte[] fileID = new byte[6];
+				readIndexFileBuffer.buffer.get(fileID);
+				long offsetInLogFile = readIndexFileBuffer.buffer.getLong();
+				int messageSize = readIndexFileBuffer.buffer.getInt();
+			}
+		}
 
 		return messageStore.pullMessage(bucket, offsetInIndexFile);
 	}
@@ -101,7 +114,7 @@ public class DefaultPullConsumer implements PullConsumer {
 	}
 
 	@Override
-	public synchronized void attachQueue(String queueName, Collection<String> topics) {
+	public void attachQueue(String queueName, Collection<String> topics) {
 		if (queue != null && !queue.equals(queueName)) {
 			throw new ClientOMSException("You have alreadly attached to a queue " + queue);
 		}
