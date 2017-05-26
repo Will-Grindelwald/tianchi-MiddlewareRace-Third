@@ -13,7 +13,7 @@ public class CommitLog {
 	private CopyOnWriteArrayList<LogFile> logFileList = new CopyOnWriteArrayList<>();
 
 	private AtomicInteger shouldAppend = new AtomicInteger(0);
-	private AtomicInteger logFileOffset = new AtomicInteger(1);
+	private AtomicInteger logFileOffset = new AtomicInteger(0);
 	private ConcurrentHashMap<Integer, AtomicInteger> countFlag = new ConcurrentHashMap<>();
 	private byte[] loopBytes = new byte[Constants.BYTE_SIZE];
 	
@@ -67,9 +67,11 @@ public class CommitLog {
 		System.out.println("a"+logName);
 		int offset = Integer.valueOf(split[1]);
 		int sum=offset+size;
-		if(offset>=logFileOffset.get()*Constants.BYTE_SIZE){
-			offset-=(logFileOffset.get()*Constants.BYTE_SIZE);
-			logFileOffset.incrementAndGet();
+		if(offset==0){
+			writeName=logName;
+		}
+		while(offset>=(Constants.BYTE_SIZE)){
+			offset-=(Constants.BYTE_SIZE);
 			
 		}
 			if( (offset<Constants.BUFFER_SIZE) && (sum>Constants.BUFFER_SIZE)){
@@ -85,6 +87,9 @@ public class CommitLog {
 				int last=offset+size-Constants.BUFFER_SIZE;
 				countFlag.get(0).addAndGet(first);
 				countFlag.get(1).addAndGet(last);
+				System.out.print(offset+" "+logFileOffset.get()+" ");
+				System.out.println(size);
+				System.arraycopy(messages, 0 ,loopBytes, offset, size);
 			}
 			else if( (offset<2*Constants.BUFFER_SIZE) && (sum>2*Constants.BUFFER_SIZE)){
 				if(logFileOffset.get()>1){
@@ -100,6 +105,7 @@ public class CommitLog {
 				int last=offset+size-2*Constants.BUFFER_SIZE;
 				countFlag.get(1).addAndGet(first);
 				countFlag.get(2).addAndGet(last);
+				System.arraycopy(messages, 0 ,loopBytes, offset, size);
 			
 			}
 			else if( (offset<Constants.BYTE_SIZE) && (sum>Constants.BYTE_SIZE)){
@@ -109,12 +115,16 @@ public class CommitLog {
 					System.out.println("wait0...");
 				}
 				//提交第一部分
+				System.out.println("aa");
+				System.out.println(sum);
 				appendMessage(loopBytes,logName);
 				countFlag.get(0).set(0);
 				int first=Constants.BYTE_SIZE-offset;
 				int last=sum-Constants.BYTE_SIZE;
 				countFlag.get(2).addAndGet(first);
 				countFlag.get(0).addAndGet(last);
+				System.arraycopy(messages, 0 ,loopBytes, offset, first);
+				System.arraycopy(messages, first, loopBytes, 0, last);
 				
 			
 			}
@@ -128,11 +138,12 @@ public class CommitLog {
 				else if(sum<=Constants.BYTE_SIZE){
 					countFlag.get(2).addAndGet(size);
 				}
-				System.out.print(offset+" ");
+
+				System.out.print(offset+" "+logFileOffset.get()+" ");
 				System.out.println(size);
-				
+				System.arraycopy(messages, 0 ,loopBytes, offset, size);
 			}
-			System.arraycopy(messages, 0 ,loopBytes, offset, size);
+
 		
 		
 		
