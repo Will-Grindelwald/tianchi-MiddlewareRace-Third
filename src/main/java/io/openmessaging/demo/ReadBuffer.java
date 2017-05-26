@@ -6,9 +6,7 @@ import java.nio.channels.FileChannel;
 
 /**
  * READ ONLY MappedByteBuffer Wrapper
- * 
- * @author will
- *
+ * for Consumer
  */
 public class ReadBuffer {
 
@@ -19,6 +17,7 @@ public class ReadBuffer {
 	public int offsetInFile;
 
 	public ReadBuffer() {
+		// do nothing
 	}
 
 	public void reMap(String bucket, FileChannel fileChannel, int offset, int size) {

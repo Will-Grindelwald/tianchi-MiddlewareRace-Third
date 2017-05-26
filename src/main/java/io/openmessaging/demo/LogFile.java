@@ -31,6 +31,7 @@ public class LogFile {
 		}
 	}
 
+	// for Producer
 	public void doAppend(byte[] bytes) {
 		try {
 			if (offset.get() > 4) {
@@ -47,12 +48,20 @@ public class LogFile {
 		writeMappedByteBuffer.clear();
 	}
 
+	// for Consumer
 	public String getFileName() {
 		return this.fileName;
 	}
 
+	// for Consumer
+	public FileChannel getFileChannel() {
+		return this.fileChannel;
+	}
+
+	// for Producer
 	public void flush() {
 		try {
+			writeMappedByteBuffer.force();
 			fileChannel.force(false);
 		} catch (IOException e) {
 			e.printStackTrace();

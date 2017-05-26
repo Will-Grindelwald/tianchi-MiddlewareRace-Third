@@ -30,11 +30,13 @@ public class MessageStore {
 		readLogFileBuffer = new ReadBuffer();
 	}
 
+	// for Producer
 	public void putMessage(String bucket, Message message) {
 		byte[] messages = messageToBytes(message);
 		CommitLogHandler.getCommitLogByName(path, bucket).appendMessage(messages);
 	}
 
+	// for Consumer
 	// 利用 MappedBuffer 读 message
 	public Message pullMessage(String bucket) {
 		// Step 1: 读 Index
@@ -54,6 +56,7 @@ public class MessageStore {
 		return bytesToMessage(message);
 	}
 
+	// for Producer
 	// defaultKeyValueToBytes 的另一种解决方案
 	public byte[] defaultKeyValueToBytes0(DefaultKeyValue kv) {
 		if (kv == null) {
@@ -98,6 +101,7 @@ public class MessageStore {
 		return result;
 	}
 
+	// for Producer
 	public byte[] defaultKeyValueToBytes(DefaultKeyValue kv) {
 		if (kv == null) {
 			return new byte[0];
@@ -115,31 +119,86 @@ public class MessageStore {
 		return null;
 	}
 
+	// for Producer
 	public byte[] messageToBytes(Message message) {
 		// TODO 添加数据压缩
+		int pos = 0;
 		byte[] byteHeaders = defaultKeyValueToBytes0((DefaultKeyValue) (message.headers()));
 		byte[] byteProperties = defaultKeyValueToBytes0((DefaultKeyValue) message.properties());
 		byte[] byteBody = ((BytesMessage) message).getBody();
 		// byteBody.length
 		byte[] bytes = Arrays.copyOf(Utils.intToByteArray(byteBody.length),
 				3 * 4 + byteBody.length + byteHeaders.length + byteProperties.length);
+		pos += 4;
 		// byteBody
-		System.arraycopy(byteBody, 0, bytes, 4, byteBody.length);
+		System.arraycopy(byteBody, 0, bytes, pos, byteBody.length);
+		pos += byteBody.length;
 		// byteHeaders.length
-		Utils.intToByteArray(byteHeaders.length, bytes, 4 + byteBody.length);
+		Utils.intToByteArray(byteHeaders.length, bytes, pos);
+		pos += 4;
 		// byteHeaders
-		System.arraycopy(byteHeaders, 0, bytes, 2 * 4 + byteBody.length, byteHeaders.length);
+		System.arraycopy(byteHeaders, 0, bytes, pos, byteHeaders.length);
+		pos += byteHeaders.length;
 		// byteProperties.length
-		Utils.intToByteArray(byteProperties.length, bytes, 2 * 4 + byteBody.length + byteHeaders.length);
+		Utils.intToByteArray(byteProperties.length, bytes, pos);
+		pos += 4;
 		// byteProperties
-		System.arraycopy(byteProperties, 0, bytes, 3 * 4 + byteBody.length + byteHeaders.length, byteProperties.length);
+		System.arraycopy(byteProperties, 0, bytes, pos, byteProperties.length);
 		return bytes;
 	}
 
+	// for Consumer
 	public DefaultKeyValue bytesToDefaultKeyValue(DefaultKeyValue kv, byte[] kvBytes, int offset, int length) {
+		int end = offset + length, intValue;
+		long longValue;
+		double doubleValue;
+		String key, stringValue;
+		while (offset < end) {
+			switch (Utils.getChar(kvBytes, offset++)) {
+			case 'i':
+				intValue = Utils.getInt(kvBytes, offset);
+				offset += 4;
+				key = new String(kvBytes, offset, intValue);
+				offset += intValue;
+				intValue = Utils.getInt(kvBytes, offset);
+				offset += 4;
+				kv.put(key, intValue);
+				break;
+			case 'l':
+				intValue = Utils.getInt(kvBytes, offset);
+				offset += 4;
+				key = new String(kvBytes, offset, intValue);
+				offset += intValue;
+				longValue = Utils.getLong(kvBytes, offset);
+				offset += 8;
+				kv.put(key, longValue);
+				break;
+			case 'd':
+				intValue = Utils.getInt(kvBytes, offset);
+				offset += 4;
+				key = new String(kvBytes, offset, intValue);
+				offset += intValue;
+				doubleValue = Utils.getDouble(kvBytes, offset);
+				offset += 8;
+				kv.put(key, doubleValue);
+				break;
+			case 's':
+				intValue = Utils.getInt(kvBytes, offset);
+				offset += 4;
+				key = new String(kvBytes, offset, intValue);
+				offset += intValue;
+				intValue = Utils.getInt(kvBytes, offset);
+				offset += 4;
+				stringValue = new String(kvBytes, offset, intValue);
+				offset += intValue;
+				kv.put(key, stringValue);
+				break;
+			}
+		}
 		return kv;
 	}
 
+	// for Consumer
 	public Message bytesToMessage(byte[] bytes) {
 		// TODO 添加数据解压缩
 		// byteBody.length
@@ -155,8 +214,8 @@ public class MessageStore {
 		// byteHeaders
 		if (length != 0) {
 			bytesToDefaultKeyValue((DefaultKeyValue) (message.headers()), bytes, pos, length);
+			pos += length;
 		}
-		pos += length;
 		// byteProperties.length
 		length = Utils.getInt(bytes, 4 + length);
 		pos += 4;
@@ -167,10 +226,12 @@ public class MessageStore {
 		return null;
 	}
 
+	// for Consumer
 	public FileChannel getIndexFileChannel(String bucket) {
 		return CommitLogHandler.getCommitLogByName(path, bucket).getIndexFileChannel();
 	}
 
+	// for Consumer
 	public FileChannel getLogFileChannelByFileID(String bucket, String fileID) {
 		return CommitLogHandler.getCommitLogByName(path, bucket).getLogFileChannelByFileID(fileID);
 	}

@@ -80,7 +80,7 @@ public class DefaultPullConsumer implements PullConsumer {
 		bucketList.addAll(buckets);
 		// TODO 待测试
 		// 1. do nothing
-		// 2. 排序, 提高 page cache 命中 <-- 目测它最快
+		// 2. 排序, 提高 page cache 命中 <-- 猜测它最快
 		// bucketList.sort(null);
 		// 3. 打乱顺序, 减少集中读一个 topic, 提高并发
 		// Collections.shuffle(bucketList);
