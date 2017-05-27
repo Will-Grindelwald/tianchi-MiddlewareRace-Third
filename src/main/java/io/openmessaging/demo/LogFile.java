@@ -45,12 +45,13 @@ public class LogFile {
 			e.printStackTrace();
 		}
 //		writeMappedByteBuffer.put(bytes,offset.updateAndGet(x->x>=3?)*Constants.BUFFER_SIZE,Constants.BUFFER_SIZE);
-		if(offset.get()>=3){
-			writeMappedByteBuffer.put(bytes,(offset.get()-3)*Constants.BUFFER_SIZE,Constants.BUFFER_SIZE);
-		}
-		else{
-			writeMappedByteBuffer.put(bytes,(offset.get())*Constants.BUFFER_SIZE,Constants.BUFFER_SIZE);
-		}
+//		if(offset.get()>=3){
+//			writeMappedByteBuffer.put(bytes,(offset.get()-3)*Constants.BUFFER_SIZE,Constants.BUFFER_SIZE);
+//		}
+//		else{
+//			writeMappedByteBuffer.put(bytes,(offset.get())*Constants.BUFFER_SIZE,Constants.BUFFER_SIZE);
+//		}
+		writeMappedByteBuffer.put(bytes);
 		offset.incrementAndGet();
 		writeMappedByteBuffer.clear();
 	}

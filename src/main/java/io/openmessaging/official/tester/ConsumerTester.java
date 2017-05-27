@@ -81,10 +81,9 @@ public class ConsumerTester {
 					}
 					String body = new String(message.getBody());
 					int index = body.lastIndexOf("_");
-					String producer = body.substring(0, index);
+					String producer = body.substring(index - 10, index);
+					System.err.println(producer);
 					int offset = Integer.parseInt(body.substring(index + 1));
-					System.out.println(producer);
-					System.out.println(offset);
 					if (offset != offsets.get(queueOrTopic).get(producer)) {
 						logger.error("Offset not equal expected:{} actual:{} producer:{} queueOrTopic:{}",
 								offsets.get(producer), offset, producer, queueOrTopic);
@@ -122,7 +121,7 @@ public class ConsumerTester {
 		for (int i = 0; i < ts.length; i++) {
 			pullNum += ((ConsumerTask) ts[i]).getPullNum();
 		}
-		System.out.println(pullNum);
+		System.out.println("pullNum=" + pullNum);
 		long end = System.currentTimeMillis();
 		logger.info("Consumer Finished, Cost {} ms, Num {}", end - start, pullNum);
 	}

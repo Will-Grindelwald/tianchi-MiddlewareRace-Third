@@ -44,6 +44,7 @@ public class DefaultPullConsumer implements PullConsumer {
 			bucket = bucketList.get(lastIndex);
 			message = messageStore.pollMessage(bucket);
 			if (message != null) {
+				System.out.println("有消息了");
 				return message;
 			}
 			// 只有不命中时才 lastIndex++, 命中时(此 topic 有新 message)会下一次继续读此 topic
@@ -80,7 +81,7 @@ public class DefaultPullConsumer implements PullConsumer {
 		// TODO 待测试
 		// 1. do nothing
 		// 2. 排序, 提高 page cache 命中 <-- 猜测它最快
-		// bucketList.sort(null);
+		bucketList.sort(null);
 		// 3. 打乱顺序, 减少集中读一个 topic, 提高并发
 		// Collections.shuffle(bucketList);
 	}

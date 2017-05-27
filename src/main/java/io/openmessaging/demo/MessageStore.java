@@ -119,25 +119,25 @@ public class MessageStore {
 		for (String key : kv.keySet()) {
 			value = kv.get(key);
 			if (value instanceof Integer) {
-				KVToBytesBuffer.putChar('i');
+				KVToBytesBuffer.put((byte)0);
 				keyBytes = key.getBytes();
 				KVToBytesBuffer.putInt(keyBytes.length);
 				KVToBytesBuffer.put(keyBytes);
 				KVToBytesBuffer.putInt((Integer) value);
 			} else if (value instanceof Long) {
-				KVToBytesBuffer.putChar('l');
+				KVToBytesBuffer.put((byte)1);
 				keyBytes = key.getBytes();
 				KVToBytesBuffer.putInt(keyBytes.length);
 				KVToBytesBuffer.put(keyBytes);
 				KVToBytesBuffer.putLong((Long) value);
 			} else if (value instanceof Double) {
-				KVToBytesBuffer.putChar('d');
+				KVToBytesBuffer.put((byte)2);
 				keyBytes = key.getBytes();
 				KVToBytesBuffer.putInt(keyBytes.length);
 				KVToBytesBuffer.put(keyBytes);
 				KVToBytesBuffer.putDouble((Double) value);
 			} else {
-				KVToBytesBuffer.putChar('s');
+				KVToBytesBuffer.put((byte)3);
 				keyBytes = key.getBytes();
 				KVToBytesBuffer.putInt(keyBytes.length);
 				KVToBytesBuffer.put(keyBytes);
@@ -200,8 +200,8 @@ public class MessageStore {
 		double doubleValue;
 		String key, stringValue;
 		while (offset < end) {
-			switch (Utils.getChar(kvBytes, offset++)) {
-			case 'i':
+			switch (kvBytes[offset++]) {
+			case 0: // for int
 				intValue = Utils.getInt(kvBytes, offset);
 				offset += 4;
 				key = new String(kvBytes, offset, intValue);
@@ -210,7 +210,7 @@ public class MessageStore {
 				offset += 4;
 				kv.put(key, intValue);
 				break;
-			case 'l':
+			case 1: // for long
 				intValue = Utils.getInt(kvBytes, offset);
 				offset += 4;
 				key = new String(kvBytes, offset, intValue);
@@ -219,7 +219,7 @@ public class MessageStore {
 				offset += 8;
 				kv.put(key, longValue);
 				break;
-			case 'd':
+			case 2: // for double
 				intValue = Utils.getInt(kvBytes, offset);
 				offset += 4;
 				key = new String(kvBytes, offset, intValue);
@@ -228,7 +228,7 @@ public class MessageStore {
 				offset += 8;
 				kv.put(key, doubleValue);
 				break;
-			case 's':
+			case 3: // for string
 				intValue = Utils.getInt(kvBytes, offset);
 				offset += 4;
 				key = new String(kvBytes, offset, intValue);

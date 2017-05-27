@@ -15,5 +15,5 @@ public class Constants {
 	public static final int BUFFER_SIZE = 20 * 1024 * 1024;
 
 	// for write buffer
-	public static final int BYTE_SIZE = 3 * BUFFER_SIZE;
+	public static final int BYTE_SIZE =  BUFFER_SIZE;
 }

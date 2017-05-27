@@ -25,7 +25,7 @@ public class IndexFile {
 	private final byte[] lastIndex0 = new byte[Constants.INDEX_SIZE];
 	private final AtomicInteger count = new AtomicInteger(0);
 
-	public IndexFile(String path, String fileName) {
+	public IndexFile(String path, String fileName, int offset) {
 		this.path = path;
 		this.fileName = fileName;
 		File file = new File(path, fileName);
@@ -35,8 +35,8 @@ public class IndexFile {
 			}
 			this.file = new RandomAccessFile(file, "rw");
 			this.fileChannel = this.file.getChannel();
-			writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, fileChannel.size(),
-					Constants.INDEX_WRITE_BUFFER_SIZE); // 1024 * 1024 条 index, 从文件末尾开始映射
+			writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, offset,
+					Constants.INDEX_WRITE_BUFFER_SIZE); // 1024 * 1024 条 index, 从 offset 开始映射
 		} catch (IOException e) {
 			throw new ClientOMSException("IndexFile create failure", e);
 		}
@@ -44,7 +44,8 @@ public class IndexFile {
 
 	// for Producer
 	public String appendIndex(int size) {
-		fileWriteLock.lock(); // 获得 lastIndex0 及 writeMappedByteBuffer 的独占权
+		fileWriteLock.lock();
+
 		String fileID;
 		byte[] previousMessageFileID = new byte[6];
 		int Offset;
@@ -113,8 +114,10 @@ public class IndexFile {
 			}
 		}
 		writeMappedByteBuffer.put(lastIndex0);
+		Index lastIndexToreturn = new Index(lastFileID, newOffset,
+				count.get() * Constants.INDEX_WRITE_BUFFER_SIZE + writeMappedByteBuffer.position());
 		fileWriteLock.unlock();
-		return new Index(lastFileID, newOffset, size);
+		return lastIndexToreturn;
 	}
 
 	// for Consumer

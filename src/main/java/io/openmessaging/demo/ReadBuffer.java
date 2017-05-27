@@ -31,7 +31,7 @@ public class ReadBuffer {
 				size = (int) (fileChannel.size() - offset);
 			}
 			if (size != 0) {
-				buffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, offset, this.size);
+				buffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, offset, size);
 				this.bucket = bucket;
 				mappedFileChannel = fileChannel;
 				offsetInFile = offset + size;
