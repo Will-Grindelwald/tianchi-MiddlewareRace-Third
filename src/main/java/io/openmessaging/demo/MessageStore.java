@@ -8,6 +8,7 @@ import java.nio.channels.FileChannel;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.locks.ReentrantLock;
 
 import io.openmessaging.BytesMessage;
 import io.openmessaging.Message;
@@ -16,6 +17,7 @@ import io.openmessaging.Message;
 public class MessageStore {
 
 	private final String path;
+	private ReentrantLock fileWriteLock = new ReentrantLock();
 
 	private HashMap<String, CommitLog> commitLogCache = new HashMap<>();
 
@@ -40,6 +42,7 @@ public class MessageStore {
 		// Step 1: message to byte[]
 		byte[] messages = messageToBytes(message);
 		// Step 2: 注册 Index
+		fileWriteLock.lock();
 		CommitLog commitLog;
 		if((commitLog = commitLogCache.get(bucket)) == null) {
 			commitLog = CommitLogHandler.getCommitLogByName(path, bucket);
@@ -49,6 +52,7 @@ public class MessageStore {
 		lastIndex.put(bucket, newIndex);
 		// Step 3: 写 Message
 		commitLog.appendMessage0(messages, newIndex.fileID, newIndex.offset);
+		fileWriteLock.unlock();
 	}
 
 	// for Consumer

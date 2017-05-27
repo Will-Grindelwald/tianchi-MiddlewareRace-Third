@@ -44,7 +44,7 @@ public class IndexFile {
 
 	// for Producer
 	public String appendIndex(int size) {
-		fileWriteLock.lock();
+//		fileWriteLock.lock();
 
 		String fileID;
 		byte[] previousMessageFileID = new byte[6];
@@ -87,7 +87,7 @@ public class IndexFile {
 			}
 		}
 		writeMappedByteBuffer.put(lastIndex);
-		fileWriteLock.unlock();
+//		fileWriteLock.unlock();
 		return fileID + ":" + Offset;
 	}
 

@@ -38,8 +38,14 @@ public class LogFile {
 			if (offset.get() > 4) {
 				offset.set(0);
 			}
-			writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, offset.get()*Constants.BUFFER_SIZE,
-					Constants.BUFFER_SIZE);
+			if(writeMappedByteBuffer.remaining()<bytes.length){
+				writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, offset.get()*Constants.BUFFER_SIZE,
+						Constants.BUFFER_SIZE);
+
+			}
+			writeMappedByteBuffer.put(bytes);
+			offset.incrementAndGet();
+
 			
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -51,8 +57,7 @@ public class LogFile {
 //		else{
 //			writeMappedByteBuffer.put(bytes,(offset.get())*Constants.BUFFER_SIZE,Constants.BUFFER_SIZE);
 //		}
-		writeMappedByteBuffer.put(bytes);
-		offset.incrementAndGet();
+
 		writeMappedByteBuffer.clear();
 	}
 
