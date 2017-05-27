@@ -47,13 +47,18 @@ public class CommitLog {
 				lastIndex = new Index(0, 0, 0);
 			} else {
 				lastFile = new RandomAccessFile(last, "rw");
-				int fileID = lastFile.readInt();
-				int offset = lastFile.readInt();
-				int size = lastFile.readInt();
-				lastIndex = new Index(fileID, offset, size);
+				if(last.length() != Constants.INDEX_SIZE) {
+					lastIndex = new Index(0, 0, 0);
+				} else {
+					int fileID = lastFile.readInt();
+					int offset = lastFile.readInt();
+					int size = lastFile.readInt();
+					lastIndex = new Index(fileID, offset, size);
+				}
 			}
 		} catch (IOException e) {
-			throw new ClientOMSException("IndexFile create failure", e);
+			e.printStackTrace();
+			throw new ClientOMSException("Last create failure", e);
 		}
 		// indexFile
 		indexFile = new IndexFile(path, "indexFile");
