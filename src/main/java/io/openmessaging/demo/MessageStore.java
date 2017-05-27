@@ -6,6 +6,8 @@ import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
 import io.openmessaging.BytesMessage;
 import io.openmessaging.Message;
@@ -15,8 +17,11 @@ public class MessageStore {
 
 	private final String path;
 
+	private HashMap<String, CommitLog> commitLogCache = new HashMap<>();
+
 	// for Producer
 	private final ByteBuffer KVToBytesBuffer = ByteBuffer.allocate(2 * 1024 * 1024);
+	private HashMap<String, Index> lastIndex = new HashMap<>();
 
 	// for Consumer
 	// 存 <bucket name, offsetInIndexFile>
@@ -30,29 +35,45 @@ public class MessageStore {
 
 	// for Producer
 	public void putMessage(String bucket, Message message) {
+		if (message == null)
+			return;
+		// Step 1: message to byte[]
 		byte[] messages = messageToBytes(message);
-		CommitLogHandler.getCommitLogByName(path, bucket).appendMessage(messages);
+		// Step 2: 注册 Index
+		CommitLog commitLog;
+		if((commitLog = commitLogCache.get(bucket)) == null) {
+			commitLog = CommitLogHandler.getCommitLogByName(path, bucket);
+			commitLogCache.put(bucket, commitLog);
+		}
+		Index newIndex = commitLog.appendIndex(messages.length);
+		lastIndex.put(bucket, newIndex);
+		// Step 3: 写 Message
+		commitLog.appendMessage0(messages, newIndex.fileID, newIndex.offset);
 	}
 
 	// for Consumer
 	// 利用 MappedBuffer 读 message
-	public Message pullMessage(String bucket) {
+	public Message pollMessage(String bucket) {
+		CommitLog commitLog;
+		if ((commitLog = commitLogCache.get(bucket)) == null) {
+			commitLog = CommitLogHandler.getCommitLogByName(path, bucket);
+			commitLogCache.put(bucket, commitLog);
+		}
 		// Step 1: 读 Index
 		int offsetInIndexFile = offsets.getOrDefault(bucket, Integer.valueOf(0));
-		FileChannel indexFileChannel = getIndexFileChannel(bucket);
+		FileChannel indexFileChannel = commitLog.getIndexFileChannel();
 		byte[] index = readIndexFileBuffer.read(bucket, indexFileChannel, offsetInIndexFile, Constants.INDEX_SIZE);
 		if (index == null)
 			return null;
 
 		// Step 2: 读 Message
-		int offsetInLogFile = Utils.getInt(index, Constants.OFFSET_POS),
-				messageSize = Utils.getInt(index, Constants.SIZE_POS);
-		FileChannel logFileChannel = getLogFileChannelByFileID(bucket,
-				new String(index, Constants.FILEID_POS, Constants.OFFSET_POS - Constants.FILEID_POS));
+		int offsetInLogFile = Index.getOffset(index), messageSize = Index.getSize(index);
+		FileChannel logFileChannel = commitLog.getLogFileChannelByFileID(Index.getFileID(index));
 		byte[] messageBytes = readLogFileBuffer.read(bucket, logFileChannel, offsetInLogFile, messageSize);
 		if (messageBytes == null)
 			return null; // ERROR 有 index 无 message
 
+		// Step 2: 更新 Offset
 		offsets.put(bucket, offsetInIndexFile + Constants.INDEX_SIZE);
 		return bytesToMessage(messageBytes);
 	}
@@ -226,14 +247,15 @@ public class MessageStore {
 		return kv;
 	}
 
-	// for Consumer
-	public FileChannel getIndexFileChannel(String bucket) {
-		return CommitLogHandler.getCommitLogByName(path, bucket).getIndexFileChannel();
+	public void flush() {
+		String bucket;
+		Index value;
+		Iterator<Map.Entry<String, Index>> iterator = lastIndex.entrySet().iterator();
+		while (iterator.hasNext()) {
+			Map.Entry<String, Index> entry = iterator.next();
+			bucket = entry.getKey();
+			value = entry.getValue();
+			commitLogCache.get(bucket).flush(value);
+		}
 	}
-
-	// for Consumer
-	public FileChannel getLogFileChannelByFileID(String bucket, String fileID) {
-		return CommitLogHandler.getCommitLogByName(path, bucket).getLogFileChannelByFileID(fileID);
-	}
-
 }

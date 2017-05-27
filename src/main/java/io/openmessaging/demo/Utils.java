@@ -67,7 +67,7 @@ public class Utils {
 		return longToByteArray(Double.doubleToRawLongBits(d), b, start);
 	}
 
-	static boolean checkBoard(byte[] b, int start, int lenth) {
+	public static boolean checkBoard(byte[] b, int start, int lenth) {
 		if (b.length - start < lenth)
 			return false;
 		return true;

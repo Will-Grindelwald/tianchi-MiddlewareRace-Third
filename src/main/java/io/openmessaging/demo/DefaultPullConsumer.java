@@ -42,7 +42,7 @@ public class DefaultPullConsumer implements PullConsumer {
 		// 慢轮询, 不致饿死后面的 topic, 又可提高 page cache 命中
 		for (int index = 0; index < bucketList.size(); index++) {
 			bucket = bucketList.get(lastIndex);
-			message = messageStore.pullMessage(bucket);
+			message = messageStore.pollMessage(bucket);
 			if (message != null) {
 				return message;
 			}

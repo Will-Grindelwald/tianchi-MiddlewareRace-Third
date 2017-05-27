@@ -77,6 +77,7 @@ public class ProducerTester {
                     break;
                 }
             }
+//            producer.flush();
         }
 
     }
@@ -93,9 +94,7 @@ public class ProducerTester {
         for (int i = 0; i < ts.length; i++) {
             ts[i].join();
         }
-//        for (int i = 0; i < ts.length; i++) {
-//            ts[i].join();
-//        }
+
         long end = System.currentTimeMillis();
         System.out.println(end - start);
         logger.info("Produce Finished, Cost {} ms", end - start);

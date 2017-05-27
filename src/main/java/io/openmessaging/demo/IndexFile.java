@@ -9,14 +9,6 @@ import java.nio.channels.FileChannel;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
-/**
- * 索引文件结构：
- *  -------------------------- 
- *  |fileID|offset|mesagesize|
- *  |000000|int   |int       | 
- *  --------------------------
- */
-// TODO 将 offset 改为 int ?
 // 全局唯一, 小心并发
 public class IndexFile {
 	// 一个读写锁???
@@ -26,9 +18,12 @@ public class IndexFile {
 	private final String fileName;
 	private final RandomAccessFile file;
 	private final FileChannel fileChannel;
+
+	// 目前下面三个变量仅用于 appendIndex 和 flush
 	private MappedByteBuffer writeMappedByteBuffer;
 	private final ByteBuffer lastIndex = ByteBuffer.allocate(Constants.INDEX_SIZE);
-	private final static AtomicInteger count = new AtomicInteger(0);
+	private final byte[] lastIndex0 = new byte[Constants.INDEX_SIZE];
+	private final AtomicInteger count = new AtomicInteger(0);
 
 	public IndexFile(String path, String fileName) {
 		this.path = path;
@@ -40,8 +35,8 @@ public class IndexFile {
 			}
 			this.file = new RandomAccessFile(file, "rw");
 			this.fileChannel = this.file.getChannel();
-			writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0,
-					Constants.INDEX_WRITE_BUFFER_SIZE);
+			writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, fileChannel.size(),
+					Constants.INDEX_WRITE_BUFFER_SIZE); // 1024 * 1024 条 index, 从文件末尾开始映射
 		} catch (IOException e) {
 			throw new ClientOMSException("IndexFile create failure", e);
 		}
@@ -49,7 +44,8 @@ public class IndexFile {
 
 	// for Producer
 	public String appendIndex(int size) {
-//		fileWriteLock.lock();
+		fileWriteLock.lock();
+
 		String fileID;
 		byte[] previousMessageFileID = new byte[6];
 		int Offset;
@@ -79,16 +75,47 @@ public class IndexFile {
 		lastIndex.putInt(size);
 		lastIndex.flip();
 		if (writeMappedByteBuffer.remaining() < lastIndex.limit()) {
-			flush();
+			// writeMappedByteBuffer.flip();
+			writeMappedByteBuffer.force();
+			// writeMappedByteBuffer.clear();
+			try {
+				writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE,
+						count.incrementAndGet() * Constants.INDEX_WRITE_BUFFER_SIZE, Constants.INDEX_WRITE_BUFFER_SIZE);
+			} catch (IOException e) {
+				System.out.println("MappedByteBuffer Exception");
+				e.printStackTrace();
+			}
 		}
 		writeMappedByteBuffer.put(lastIndex);
-//		fileWriteLock.unlock();
+		fileWriteLock.unlock();
 		return fileID + ":" + Offset;
 	}
 
 	// for Producer
-	public String getFileName() {
-		return this.fileName;
+	public Index appendIndex0(int size) {
+		fileWriteLock.lock(); // 获得 lastIndex0 及 writeMappedByteBuffer 的独占权
+		int lastFileID = Index.getFileID(lastIndex0);
+		int newOffset = Index.getOffset(lastIndex0) + Index.getSize(lastIndex0);
+		if (newOffset + size > Constants.LOG_FILE_SIZE) { // 启用新的 LogFile
+			lastFileID++;
+			Index.setFileID(lastIndex0, lastFileID);
+			newOffset = 0;
+		}
+		Index.setOffset(lastIndex0, newOffset);
+		Index.setSize(lastIndex0, size);
+		if (writeMappedByteBuffer.remaining() < lastIndex0.length) {
+			writeMappedByteBuffer.force();
+			try {
+				writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE,
+						count.incrementAndGet() * Constants.INDEX_WRITE_BUFFER_SIZE, Constants.INDEX_WRITE_BUFFER_SIZE);
+			} catch (IOException e) {
+				System.out.println("MappedByteBuffer Exception");
+				e.printStackTrace();
+			}
+		}
+		writeMappedByteBuffer.put(lastIndex0);
+		fileWriteLock.unlock();
+		return new Index(lastFileID, newOffset, size);
 	}
 
 	// for Consumer
@@ -98,14 +125,10 @@ public class IndexFile {
 
 	// for Producer
 	public void flush() {
-		// writeMappedByteBuffer.flip();
-		writeMappedByteBuffer.force();
-		writeMappedByteBuffer.clear();
 		try {
-			writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE,
-					count.incrementAndGet() * Constants.INDEX_WRITE_BUFFER_SIZE, Constants.INDEX_WRITE_BUFFER_SIZE);
+			writeMappedByteBuffer.force();
+			fileChannel.force(false);
 		} catch (IOException e) {
-			System.out.println("MappedByteBuffer Exception");
 			e.printStackTrace();
 		}
 	}
