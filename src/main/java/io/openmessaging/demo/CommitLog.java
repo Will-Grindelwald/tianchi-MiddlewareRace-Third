@@ -7,6 +7,7 @@ import java.nio.channels.FileChannel;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 
 // 一个 buchet 一个, 全局唯一, 小心并发
 public class CommitLog {
@@ -16,8 +17,9 @@ public class CommitLog {
 	private final CopyOnWriteArrayList<LogFile> logFileList = new CopyOnWriteArrayList<>();
 	private final RandomAccessFile lastFile;
 
-	private AtomicInteger shouldAppend = new AtomicInteger(0);
-	private AtomicInteger logFileOffset = new AtomicInteger(0);
+	private final AtomicInteger shouldAppend = new AtomicInteger(0);
+	private final AtomicInteger logFileOffset = new AtomicInteger(0);
+	private ReentrantLock fileWriteLock = new ReentrantLock();
 	private ConcurrentHashMap<Integer, AtomicInteger> countFlag = new ConcurrentHashMap<>();
 	private byte[] loopBytes = new byte[Constants.BYTE_SIZE];
 	
@@ -75,15 +77,16 @@ public class CommitLog {
 		return newFile;
 	}
 	
-	public void appendMessage(byte[] messages){
+	public void appendMessage(byte[] messages) {
 		int size = messages.length;
 		// appendIndex是否返回Name待定
 		String afterIndex = indexFile.appendIndex(size);
 		String[] split = afterIndex.split(":");
 		String logName = split[0];
-		System.out.println("a"+logName);
 		int offset = Integer.valueOf(split[1]);
-		if(offset==0 && logFileOffset.get()>0){
+		System.out.println("should write "+logName+"offset:"+offset);
+		fileWriteLock.lock();
+		if(offset==0 && logFileOffset.get()>0){	
 			commit(loopBytes);
 			shouldAppend.set(0);
 			logFileOffset.set(0);
@@ -93,9 +96,9 @@ public class CommitLog {
 		}
 		while(offset>=(Constants.BYTE_SIZE)){
 			offset-=(Constants.BYTE_SIZE);
-			
 		}
 		int sum=offset+size;
+		
 		if( (offset<Constants.BUFFER_SIZE) && (sum>Constants.BUFFER_SIZE)){
 			if(logFileOffset.get()>0){
 				while(countFlag.get(1).get()<Constants.BUFFER_SIZE){
@@ -106,10 +109,9 @@ public class CommitLog {
 				countFlag.get(1).set(0);
 				shouldAppend.incrementAndGet();
 			}
-			int first=Constants.BUFFER_SIZE-offset;
-			int last=offset+size-Constants.BUFFER_SIZE;
-			countFlag.get(0).addAndGet(first);
-			countFlag.get(1).addAndGet(last);
+			
+			countFlag.get(0).addAndGet(Constants.BUFFER_SIZE-offset);
+			countFlag.get(1).addAndGet(offset+size-Constants.BUFFER_SIZE);
 			System.out.print(offset+" "+logFileOffset.get()+" ");
 			System.out.println(size);
 			System.arraycopy(messages, 0 ,loopBytes, offset, size);
@@ -124,11 +126,8 @@ public class CommitLog {
 				countFlag.get(2).set(0);
 				shouldAppend.set(0);
 			}
-			
-			int first=2*Constants.BUFFER_SIZE-offset;
-			int last=offset+size-2*Constants.BUFFER_SIZE;
-			countFlag.get(1).addAndGet(first);
-			countFlag.get(2).addAndGet(last);
+			countFlag.get(1).addAndGet(2*Constants.BUFFER_SIZE-offset);
+			countFlag.get(2).addAndGet(offset+size-2*Constants.BUFFER_SIZE);
 			System.arraycopy(messages, 0 ,loopBytes, offset, size);
 		
 		}
@@ -139,7 +138,6 @@ public class CommitLog {
 				System.out.println("wait0...");
 			}
 			//提交第一部分
-			System.out.println("aa");
 			System.out.println(sum);
 			appendMessage(loopBytes,writeName);
 			countFlag.get(0).set(0);
@@ -155,22 +153,15 @@ public class CommitLog {
 		
 		}
 		else {
-			if(sum<Constants.BUFFER_SIZE){
-				countFlag.get(0).addAndGet(size);
-			}
-			else if(sum<=2*Constants.BUFFER_SIZE) {
-				countFlag.get(1).addAndGet(size);
-			}
-			else if(sum<=Constants.BYTE_SIZE){
-				countFlag.get(2).addAndGet(size);
-			}
-
+			countFlag.get(0).updateAndGet(x->sum<Constants.BUFFER_SIZE?x+size:x);
+			countFlag.get(1).updateAndGet(x->(sum>=Constants.BUFFER_SIZE)&&(sum<=2*Constants.BUFFER_SIZE)?x+size:x);
+			countFlag.get(2).updateAndGet(x->(sum>=2*Constants.BUFFER_SIZE)&&(sum<=Constants.BYTE_SIZE)?x+size:x);
 			System.out.print(offset+" "+logFileOffset.get()+" ");
 			System.out.println(size);
 			System.arraycopy(messages, 0 ,loopBytes, offset, size);
 		}
 
-		
+		fileWriteLock.unlock();
 		
 	}
 
@@ -178,11 +169,13 @@ public class CommitLog {
 		// appendIndex是否返回Name待定
 		return indexFile.appendIndex0(size);
 	}
-	
+
 	public void appendMessage0(byte[] messages, int logFileID, int offset) {
 		int size = messages.length;
 		System.out.println("a" + logFileID);
-		if (offset == 0 && logFileOffset.get() > 0) {
+		System.out.println("should write "+logFileID+"offset:"+offset);
+		fileWriteLock.lock();
+		if(offset==0 && logFileOffset.get()>0){	
 			commit(loopBytes);
 			shouldAppend.set(0);
 			logFileOffset.set(0);
@@ -295,9 +288,14 @@ public class CommitLog {
 		return null; // ERROR 文件丢失？
 	}
 
+	// for Producer
 	public void commit(byte[] messages) {
 		int start = shouldAppend.get();
-		while (countFlag.get(start).get() <= Constants.BUFFER_SIZE && countFlag.get(start).get() > 0) {
+		while(countFlag.get(2).get()<Constants.BUFFER_SIZE ){
+		}
+		while(countFlag.get(0).get()<Constants.BUFFER_SIZE){
+		}
+		while(countFlag.get(start).get()<=Constants.BUFFER_SIZE && countFlag.get(start).get()>0){
 			appendMessage(messages, writeName);
 			countFlag.get(start).set(0);
 			start = shouldAppend.updateAndGet(x -> x == 2 ? 0 : ++x);

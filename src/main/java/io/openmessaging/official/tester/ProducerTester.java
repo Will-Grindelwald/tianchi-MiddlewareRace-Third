@@ -59,12 +59,11 @@ public class ProducerTester {
             while (true) {
                 try {
                     String queueOrTopic;
-//                    if (sendNum % 10 == 0) {
-//                        queueOrTopic = "QUEUE_" + random.nextInt(10);
-//                    } else {
-//                        queueOrTopic = "TOPIC_" + random.nextInt(10);
-//                    }
-                    queueOrTopic="QUEUE_0";
+                    if (sendNum % 2== 0) {
+                        queueOrTopic = "QUEUE_" + random.nextInt(2);
+                    } else {
+                        queueOrTopic = "TOPIC_" + random.nextInt(2);
+                    }
                     Message message = producer.createBytesMessageToQueue(queueOrTopic, (offsets.get(queueOrTopic)));
                     logger.debug("queueOrTopic:{} offset:{}", queueOrTopic, label + "_" + offsets.get(queueOrTopic));
                     offsets.put(queueOrTopic, offsets.get(queueOrTopic));
@@ -94,6 +93,9 @@ public class ProducerTester {
         for (int i = 0; i < ts.length; i++) {
             ts[i].join();
         }
+//        for (int i = 0; i < ts.length; i++) {
+//            ts[i].join();
+//        }
         long end = System.currentTimeMillis();
         System.out.println(end - start);
         logger.info("Produce Finished, Cost {} ms", end - start);
