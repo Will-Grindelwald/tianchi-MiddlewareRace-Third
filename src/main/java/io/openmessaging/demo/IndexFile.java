@@ -35,8 +35,8 @@ public class IndexFile {
 			}
 			this.file = new RandomAccessFile(file, "rw");
 			this.fileChannel = this.file.getChannel();
-			writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0,
-					Constants.INDEX_WRITE_BUFFER_SIZE); // 1024 * 1024 条index
+			writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, fileChannel.size(),
+					Constants.INDEX_WRITE_BUFFER_SIZE); // 1024 * 1024 条 index, 从文件末尾开始映射
 		} catch (IOException e) {
 			throw new ClientOMSException("IndexFile create failure", e);
 		}
@@ -115,11 +115,6 @@ public class IndexFile {
 		writeMappedByteBuffer.put(lastIndex0);
 		fileWriteLock.unlock();
 		return new Index(lastFileID, newOffset, size);
-	}
-
-	// for Producer
-	public String getFileName() {
-		return this.fileName;
 	}
 
 	// for Consumer

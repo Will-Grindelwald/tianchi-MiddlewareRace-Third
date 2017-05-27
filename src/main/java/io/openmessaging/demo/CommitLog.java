@@ -26,10 +26,11 @@ public class CommitLog {
 	private String writeName="000000";
 	
 	// 用于 flush
-	private Index lastIndex = new Index(0, 0, 0);
+	private Index lastIndex;
 
 	public CommitLog(String path) {
 		this.path = path;
+		// topic dir
 		File file = new File(path);
 		if (file.exists()) {
 			if (!file.isDirectory())
@@ -37,16 +38,26 @@ public class CommitLog {
 		} else {
 			file.mkdirs();
 		}
+		// Last file
 		File last = new File(path, "Last");
 		try {
-			if (!file.exists()) {
-				file.createNewFile();
+			if (!last.exists()) {
+				last.createNewFile();
+				lastFile = new RandomAccessFile(last, "rw");
+				lastIndex = new Index(0, 0, 0);
+			} else {
+				lastFile = new RandomAccessFile(last, "rw");
+				int fileID = lastFile.readInt();
+				int offset = lastFile.readInt();
+				int size = lastFile.readInt();
+				lastIndex = new Index(fileID, offset, size);
 			}
-			lastFile = new RandomAccessFile(last, "rw");
 		} catch (IOException e) {
 			throw new ClientOMSException("IndexFile create failure", e);
 		}
+		// indexFile
 		indexFile = new IndexFile(path, "indexFile");
+		// LogFiles
 		for (String logFileName : file.list((dir, name) -> name.startsWith("LOG"))) {
 			logFileList.add(new LogFile(path, logFileName));
 		}
@@ -255,7 +266,7 @@ public class CommitLog {
 			System.out.println(size);
 			System.arraycopy(messages, 0, loopBytes, offset, size);
 		}
-
+		fileWriteLock.unlock();
 	}
 
 	// for Producer
@@ -302,6 +313,17 @@ public class CommitLog {
 		}
 	}
 
+	public void flushIndex(Index lastIndex) {
+		try {
+			lastFile.seek(0);
+			lastFile.writeInt(lastIndex.fileID);
+			lastFile.writeInt(lastIndex.offset);
+			lastFile.writeInt(lastIndex.size);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
 	// for Producer
 	// synchronized for lastIndex
 	public synchronized void flush(Index lastIndexOfProducer) {
@@ -309,11 +331,12 @@ public class CommitLog {
 		if (lastIndex.fileID == lastIndexOfProducer.fileID) {
 			if (lastIndex.offset < lastIndexOfProducer.offset) {
 				lastIndex = lastIndexOfProducer;
+				flushIndex(lastIndex);
 			}
 		} else if (lastIndex.fileID < lastIndexOfProducer.fileID) {
 			lastIndex = lastIndexOfProducer;
+			flushIndex(lastIndex);
 		}
-		
 		// 2. flush Index
 		
 		
