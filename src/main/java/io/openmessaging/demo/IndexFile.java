@@ -9,13 +9,6 @@ import java.nio.channels.FileChannel;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
-/**
- * 索引文件结构：
- *  -------------------------- 
- *  |fileID|offset|mesagesize|
- *  |000000|int   |int       | 
- *  --------------------------
- */
 // 全局唯一, 小心并发
 public class IndexFile {
 	// 一个读写锁???
@@ -25,6 +18,8 @@ public class IndexFile {
 	private final String fileName;
 	private final RandomAccessFile file;
 	private final FileChannel fileChannel;
+
+	// 目前下面三个变量仅用于 appendIndex 和 flush
 	private MappedByteBuffer writeMappedByteBuffer;
 	private final ByteBuffer lastIndex = ByteBuffer.allocate(Constants.INDEX_SIZE);
 	private final byte[] lastIndex0 = new byte[Constants.INDEX_SIZE];
@@ -94,27 +89,21 @@ public class IndexFile {
 		fileWriteLock.unlock();
 		return fileID + ":" + Offset;
 	}
-	
+
 	// for Producer
-	public String appendIndex0(int size) {
+	public Index appendIndex0(int size) {
 		fileWriteLock.lock(); // 获得 lastIndex0 及 writeMappedByteBuffer 的独占权
-		String fileID;
-		int lastFileID = Integer.valueOf(new String(lastIndex0, Constants.FILEID_POS, Constants.FILEID_LEN));
-		int newOffset = Utils.getInt(lastIndex0, Constants.OFFSET_POS) + Utils.getInt(lastIndex0, Constants.SIZE_POS);
+		int lastFileID = Index.getFileID(lastIndex0);
+		int newOffset = Index.getOffset(lastIndex0) + Index.getSize(lastIndex0);
 		if (newOffset + size > Constants.LOG_FILE_SIZE) { // 启用新的 LogFile
-			fileID = String.format("%06d", lastFileID + 1);
-			byte[] fileIDBytes = fileID.getBytes();
-			System.arraycopy(fileIDBytes, 0, lastIndex0, Constants.FILEID_POS, Constants.FILEID_LEN);
+			lastFileID++;
+			Index.setFileID(lastIndex0, lastFileID);
 			newOffset = 0;
-		} else {
-			fileID = String.format("%06d", lastFileID);
 		}
-		Utils.intToByteArray(newOffset, lastIndex0, Constants.OFFSET_POS);
-		Utils.intToByteArray(size, lastIndex0, Constants.SIZE_POS);
+		Index.setOffset(lastIndex0, newOffset);
+		Index.setSize(lastIndex0, size);
 		if (writeMappedByteBuffer.remaining() < lastIndex0.length) {
-			// writeMappedByteBuffer.flip();
 			writeMappedByteBuffer.force();
-			// writeMappedByteBuffer.clear();
 			try {
 				writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE,
 						count.incrementAndGet() * Constants.INDEX_WRITE_BUFFER_SIZE, Constants.INDEX_WRITE_BUFFER_SIZE);
@@ -125,7 +114,7 @@ public class IndexFile {
 		}
 		writeMappedByteBuffer.put(lastIndex0);
 		fileWriteLock.unlock();
-		return fileID + ":" + newOffset;
+		return new Index(lastFileID, newOffset, size);
 	}
 
 	// for Producer

@@ -3,12 +3,9 @@ package io.openmessaging.demo;
 public class Constants {
 	// for index
 	public static final int FILEID_POS = 0;
-	public static final int FILEID_LEN = "000000".getBytes().length; // 6
-	public static final int OFFSET_POS = FILEID_POS + FILEID_LEN;
-	public static final int OFFSET_LEN = Utils.intToByteArray(0).length; // 4
-	public static final int SIZE_POS = OFFSET_POS + OFFSET_LEN;
-	public static final int SIZE_LEN = Utils.intToByteArray(0).length; // 4
-	public static final int INDEX_SIZE = SIZE_POS + SIZE_LEN;
+	public static final int OFFSET_POS = 4;
+	public static final int SIZE_POS = 8;
+	public static final int INDEX_SIZE = 12;
 	public static final int INDEX_WRITE_BUFFER_SIZE = INDEX_SIZE * 1024 * 1024;
 
 	// for log

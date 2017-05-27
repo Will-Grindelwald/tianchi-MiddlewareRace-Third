@@ -67,11 +67,13 @@ public class ConsumerTester {
 
         @Override
         public void run() {
+        	int count=0;
             while (true) {
                 try {
                     BytesMessage message = (BytesMessage) consumer.poll();
+                    System.out.println(count++);
                     if (message == null) {
-                        break;
+                        continue;
                     }
                     String queueOrTopic;
                     if (message.headers().getString(MessageHeader.QUEUE) != null) {

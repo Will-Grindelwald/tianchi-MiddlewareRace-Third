@@ -59,11 +59,12 @@ public class ProducerTester {
             while (true) {
                 try {
                     String queueOrTopic;
-                    if (sendNum % 10 == 0) {
-                        queueOrTopic = "QUEUE_" + random.nextInt(10);
-                    } else {
-                        queueOrTopic = "TOPIC_" + random.nextInt(10);
-                    }
+//                    if (sendNum % 10 == 0) {
+//                        queueOrTopic = "QUEUE_" + random.nextInt(10);
+//                    } else {
+//                        queueOrTopic = "TOPIC_" + random.nextInt(10);
+//                    }
+                    queueOrTopic="QUEUE_0";
                     Message message = producer.createBytesMessageToQueue(queueOrTopic, (offsets.get(queueOrTopic)));
                     logger.debug("queueOrTopic:{} offset:{}", queueOrTopic, label + "_" + offsets.get(queueOrTopic));
                     offsets.put(queueOrTopic, offsets.get(queueOrTopic));
