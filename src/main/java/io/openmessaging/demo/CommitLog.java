@@ -62,6 +62,7 @@ public class CommitLog {
 		return newFile;
 	}
 	public void  appendMessage(byte[] messages){
+		fileWriteLock.lock();
 		int size = messages.length;
 		// appendIndex是否返回Name待定
 		String afterIndex = indexFile.appendIndex(size);
@@ -69,7 +70,7 @@ public class CommitLog {
 		String logName = split[0];
 		int offset = Integer.valueOf(split[1]);
 		System.out.println("should write "+logName+"offset:"+offset);
-		fileWriteLock.lock();
+
 		if(offset==0 && logFileOffset.get()>0){	
 			flush(loopBytes);
 			shouldAppend.set(0);
@@ -93,7 +94,6 @@ public class CommitLog {
 				countFlag.get(1).set(0);
 				shouldAppend.incrementAndGet();
 			}
-			
 			countFlag.get(0).addAndGet(Constants.BUFFER_SIZE-offset);
 			countFlag.get(1).addAndGet(offset+size-Constants.BUFFER_SIZE);
 			System.out.print(offset+" "+logFileOffset.get()+" ");
@@ -132,14 +132,12 @@ public class CommitLog {
 			countFlag.get(2).addAndGet(first);
 			countFlag.get(0).addAndGet(last);
 			System.arraycopy(messages, 0 ,loopBytes, offset, first);
-			System.arraycopy(messages, first, loopBytes, 0, last);
-			
-		
+			System.arraycopy(messages, first, loopBytes, 0, last);	
 		}
 		else {
 			countFlag.get(0).updateAndGet(x->sum<Constants.BUFFER_SIZE?x+size:x);
-			countFlag.get(1).updateAndGet(x->(sum>=Constants.BUFFER_SIZE)&&(sum<=2*Constants.BUFFER_SIZE)?x+size:x);
-			countFlag.get(2).updateAndGet(x->(sum>=2*Constants.BUFFER_SIZE)&&(sum<=Constants.BYTE_SIZE)?x+size:x);
+			countFlag.get(1).updateAndGet(x->(sum>=(Constants.BUFFER_SIZE)&&(sum<=2*Constants.BUFFER_SIZE))?x+size:x);
+			countFlag.get(2).updateAndGet(x->(sum>=(2*Constants.BUFFER_SIZE)&&(sum<=Constants.BYTE_SIZE))?x+size:x);
 			System.out.print(offset+" "+logFileOffset.get()+" ");
 			System.out.println(size);
 			System.arraycopy(messages, 0 ,loopBytes, offset, size);
