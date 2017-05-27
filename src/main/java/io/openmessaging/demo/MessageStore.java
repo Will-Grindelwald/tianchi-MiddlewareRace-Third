@@ -17,6 +17,7 @@ public class MessageStore {
 
 	// for Producer
 	private final ByteBuffer KVToBytesBuffer = ByteBuffer.allocate(2 * 1024 * 1024);
+	private final byte[] lastIndex0 = new byte[Constants.INDEX_SIZE];
 
 	// for Consumer
 	// 存 <bucket name, offsetInIndexFile>
@@ -31,7 +32,11 @@ public class MessageStore {
 	// for Producer
 	public void putMessage(String bucket, Message message) {
 		byte[] messages = messageToBytes(message);
-		CommitLogHandler.getCommitLogByName(path, bucket).appendMessage(messages);
+		CommitLog commitLog = CommitLogHandler.getCommitLogByName(path, bucket);
+		// Step 1: 注册 Index
+		commitLog.appendMessage(messages);
+		// Step 2: 写 Message
+		commitLog.appendMessage(messages);
 	}
 
 	// for Consumer
@@ -48,7 +53,7 @@ public class MessageStore {
 		int offsetInLogFile = Utils.getInt(index, Constants.OFFSET_POS),
 				messageSize = Utils.getInt(index, Constants.SIZE_POS);
 		FileChannel logFileChannel = getLogFileChannelByFileID(bucket,
-				new String(index, Constants.FILEID_POS, Constants.OFFSET_POS - Constants.FILEID_POS));
+				new String(index, Constants.FILEID_POS, Constants.FILEID_LEN));
 		byte[] messageBytes = readLogFileBuffer.read(bucket, logFileChannel, offsetInLogFile, messageSize);
 		if (messageBytes == null)
 			return null; // ERROR 有 index 无 message

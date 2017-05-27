@@ -16,7 +16,6 @@ import java.util.concurrent.locks.ReentrantLock;
  *  |000000|int   |int       | 
  *  --------------------------
  */
-// TODO 将 offset 改为 int ?
 // 全局唯一, 小心并发
 public class IndexFile {
 	// 一个读写锁???
@@ -28,7 +27,8 @@ public class IndexFile {
 	private final FileChannel fileChannel;
 	private MappedByteBuffer writeMappedByteBuffer;
 	private final ByteBuffer lastIndex = ByteBuffer.allocate(Constants.INDEX_SIZE);
-	private final static AtomicInteger count = new AtomicInteger(0);
+	private final byte[] lastIndex0 = new byte[Constants.INDEX_SIZE];
+	private final AtomicInteger count = new AtomicInteger(0);
 
 	public IndexFile(String path, String fileName) {
 		this.path = path;
@@ -41,7 +41,7 @@ public class IndexFile {
 			this.file = new RandomAccessFile(file, "rw");
 			this.fileChannel = this.file.getChannel();
 			writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0,
-					Constants.INDEX_WRITE_BUFFER_SIZE);
+					Constants.INDEX_WRITE_BUFFER_SIZE); // 1024 * 1024 条index
 		} catch (IOException e) {
 			throw new ClientOMSException("IndexFile create failure", e);
 		}
@@ -49,7 +49,7 @@ public class IndexFile {
 
 	// for Producer
 	public String appendIndex(int size) {
-		fileWriteLock.lock();
+		fileWriteLock.lock(); // 获得 lastIndex0 及 writeMappedByteBuffer 的独占权
 		String fileID;
 		byte[] previousMessageFileID = new byte[6];
 		int Offset;
@@ -79,11 +79,53 @@ public class IndexFile {
 		lastIndex.putInt(size);
 		lastIndex.flip();
 		if (writeMappedByteBuffer.remaining() < lastIndex.limit()) {
-			flush();
+			// writeMappedByteBuffer.flip();
+			writeMappedByteBuffer.force();
+			// writeMappedByteBuffer.clear();
+			try {
+				writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE,
+						count.incrementAndGet() * Constants.INDEX_WRITE_BUFFER_SIZE, Constants.INDEX_WRITE_BUFFER_SIZE);
+			} catch (IOException e) {
+				System.out.println("MappedByteBuffer Exception");
+				e.printStackTrace();
+			}
 		}
 		writeMappedByteBuffer.put(lastIndex);
 		fileWriteLock.unlock();
 		return fileID + ":" + Offset;
+	}
+	
+	// for Producer
+	public String appendIndex0(int size) {
+		fileWriteLock.lock(); // 获得 lastIndex0 及 writeMappedByteBuffer 的独占权
+		String fileID;
+		int lastFileID = Integer.valueOf(new String(lastIndex0, Constants.FILEID_POS, Constants.FILEID_LEN));
+		int newOffset = Utils.getInt(lastIndex0, Constants.OFFSET_POS) + Utils.getInt(lastIndex0, Constants.SIZE_POS);
+		if (newOffset + size > Constants.LOG_FILE_SIZE) { // 启用新的 LogFile
+			fileID = String.format("%06d", lastFileID + 1);
+			byte[] fileIDBytes = fileID.getBytes();
+			System.arraycopy(fileIDBytes, 0, lastIndex0, Constants.FILEID_POS, Constants.FILEID_LEN);
+			newOffset = 0;
+		} else {
+			fileID = String.format("%06d", lastFileID);
+		}
+		Utils.intToByteArray(newOffset, lastIndex0, Constants.OFFSET_POS);
+		Utils.intToByteArray(size, lastIndex0, Constants.SIZE_POS);
+		if (writeMappedByteBuffer.remaining() < lastIndex0.length) {
+			// writeMappedByteBuffer.flip();
+			writeMappedByteBuffer.force();
+			// writeMappedByteBuffer.clear();
+			try {
+				writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE,
+						count.incrementAndGet() * Constants.INDEX_WRITE_BUFFER_SIZE, Constants.INDEX_WRITE_BUFFER_SIZE);
+			} catch (IOException e) {
+				System.out.println("MappedByteBuffer Exception");
+				e.printStackTrace();
+			}
+		}
+		writeMappedByteBuffer.put(lastIndex0);
+		fileWriteLock.unlock();
+		return fileID + ":" + newOffset;
 	}
 
 	// for Producer
@@ -98,14 +140,10 @@ public class IndexFile {
 
 	// for Producer
 	public void flush() {
-		// writeMappedByteBuffer.flip();
-		writeMappedByteBuffer.force();
-		writeMappedByteBuffer.clear();
 		try {
-			writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE,
-					count.incrementAndGet() * Constants.INDEX_WRITE_BUFFER_SIZE, Constants.INDEX_WRITE_BUFFER_SIZE);
+			writeMappedByteBuffer.force();
+			fileChannel.force(false);
 		} catch (IOException e) {
-			System.out.println("MappedByteBuffer Exception");
 			e.printStackTrace();
 		}
 	}

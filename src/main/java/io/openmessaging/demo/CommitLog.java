@@ -6,7 +6,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
-// 全局唯一, 小心并发
+// 一个 buchet 一个, 全局唯一, 小心并发
 public class CommitLog {
 
 	private final String path;
@@ -19,6 +19,8 @@ public class CommitLog {
 	private byte[] loopBytes = new byte[Constants.BYTE_SIZE];
 	
 	private String writeName="000000";
+	
+	private final byte[] lastIndex0 = new byte[Constants.INDEX_SIZE];
 
 	public CommitLog(String path) {
 		this.path = path;
@@ -280,5 +282,9 @@ public class CommitLog {
 	// for Producer
 	public void flush() {
 		// TODO
+//		int lastFileID = Integer.valueOf(new String(lastIndex0, Constants.FILEID_POS, Constants.FILEID_LEN));
+//		int newOffset = Utils.getInt(lastIndex0, Constants.OFFSET_POS) + Utils.getInt(lastIndex0, Constants.SIZE_POS);
+//		Utils.intToByteArray(newOffset, lastIndex0, Constants.OFFSET_POS);
+//		Utils.intToByteArray(, lastIndex0, Constants.SIZE_POS);
 	}
 }
