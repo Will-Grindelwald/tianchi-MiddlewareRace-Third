@@ -44,7 +44,7 @@ public class ProducerTester {
             }
             //init offsets
             byte[] news=new byte[1024*256];
-            for(int i=0;i<1024*256;i++){
+            for(int i=0;i<1024*100;i++){
             	news[i]='q';
             }
             for (int i = 0; i < 10; i++) {
@@ -59,10 +59,10 @@ public class ProducerTester {
             while (true) {
                 try {
                     String queueOrTopic;
-                    if (sendNum % 2== 0) {
-                        queueOrTopic = "QUEUE_" + random.nextInt(2);
+                    if (sendNum % 10== 0) {
+                        queueOrTopic = "QUEUE_" + random.nextInt(10);
                     } else {
-                        queueOrTopic = "TOPIC_" + random.nextInt(2);
+                        queueOrTopic = "TOPIC_" + random.nextInt(10);
                     }
                     Message message = producer.createBytesMessageToQueue(queueOrTopic, (offsets.get(queueOrTopic)));
                     logger.debug("queueOrTopic:{} offset:{}", queueOrTopic, label + "_" + offsets.get(queueOrTopic));
