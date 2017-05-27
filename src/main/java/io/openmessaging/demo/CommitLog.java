@@ -67,7 +67,11 @@ public class CommitLog {
 		String logName = split[0];
 		System.out.println("a"+logName);
 		int offset = Integer.valueOf(split[1]);
-
+		if(offset==0 && logFileOffset.get()>0){
+			flush(loopBytes);
+			shouldAppend.set(0);
+			logFileOffset.set(0);
+		}
 		if(offset==0){
 			writeName=logName;
 		}
@@ -76,76 +80,79 @@ public class CommitLog {
 			
 		}
 		int sum=offset+size;
-			if( (offset<Constants.BUFFER_SIZE) && (sum>Constants.BUFFER_SIZE)){
-				if(logFileOffset.get()>0){
-					while(countFlag.get(1).get()<Constants.BUFFER_SIZE){
-						//等待
-						System.out.println("wait1...");
-					}
-					appendMessage(loopBytes,logName);
-					countFlag.get(1).set(0);
-				}
-				int first=Constants.BUFFER_SIZE-offset;
-				int last=offset+size-Constants.BUFFER_SIZE;
-				countFlag.get(0).addAndGet(first);
-				countFlag.get(1).addAndGet(last);
-				System.out.print(offset+" "+logFileOffset.get()+" ");
-				System.out.println(size);
-				System.arraycopy(messages, 0 ,loopBytes, offset, size);
-			}
-			else if( (offset<2*Constants.BUFFER_SIZE) && (sum>2*Constants.BUFFER_SIZE)){
-				if(logFileOffset.get()>0){
-					while(countFlag.get(2).get()<Constants.BUFFER_SIZE){
-						//等待
-						System.out.println("wait2...");
-					}
-					appendMessage(loopBytes,logName);
-					countFlag.get(2).set(0);
-				}
-				
-				int first=2*Constants.BUFFER_SIZE-offset;
-				int last=offset+size-2*Constants.BUFFER_SIZE;
-				countFlag.get(1).addAndGet(first);
-				countFlag.get(2).addAndGet(last);
-				System.arraycopy(messages, 0 ,loopBytes, offset, size);
-			
-			}
-			else if( (offset<Constants.BYTE_SIZE) && (sum>Constants.BYTE_SIZE)){
-				while(countFlag.get(0).get()<Constants.BUFFER_SIZE){
+		if( (offset<Constants.BUFFER_SIZE) && (sum>Constants.BUFFER_SIZE)){
+			if(logFileOffset.get()>0){
+				while(countFlag.get(1).get()<Constants.BUFFER_SIZE){
 					//等待
-					System.out.println(countFlag.get(0).get());
-					System.out.println("wait0...");
+					System.out.println("wait1...");
 				}
-				//提交第一部分
-				System.out.println("aa");
-				System.out.println(sum);
-				appendMessage(loopBytes,logName);
-				countFlag.get(0).set(0);
-				logFileOffset.incrementAndGet();
-				int first=Constants.BYTE_SIZE-offset;
-				int last=sum-Constants.BYTE_SIZE;
-				countFlag.get(2).addAndGet(first);
-				countFlag.get(0).addAndGet(last);
-				System.arraycopy(messages, 0 ,loopBytes, offset, first);
-				System.arraycopy(messages, first, loopBytes, 0, last);
-				
+				appendMessage(loopBytes,writeName);
+				countFlag.get(1).set(0);
+				shouldAppend.incrementAndGet();
+			}
+			int first=Constants.BUFFER_SIZE-offset;
+			int last=offset+size-Constants.BUFFER_SIZE;
+			countFlag.get(0).addAndGet(first);
+			countFlag.get(1).addAndGet(last);
+			System.out.print(offset+" "+logFileOffset.get()+" ");
+			System.out.println(size);
+			System.arraycopy(messages, 0 ,loopBytes, offset, size);
+		}
+		else if( (offset<2*Constants.BUFFER_SIZE) && (sum>2*Constants.BUFFER_SIZE)){
+			if(logFileOffset.get()>0){
+				while(countFlag.get(2).get()<Constants.BUFFER_SIZE){
+					//等待
+					System.out.println("wait2...");
+				}
+				appendMessage(loopBytes,writeName);
+				countFlag.get(2).set(0);
+				shouldAppend.set(0);
+			}
 			
+			int first=2*Constants.BUFFER_SIZE-offset;
+			int last=offset+size-2*Constants.BUFFER_SIZE;
+			countFlag.get(1).addAndGet(first);
+			countFlag.get(2).addAndGet(last);
+			System.arraycopy(messages, 0 ,loopBytes, offset, size);
+		
+		}
+		else if( (offset<Constants.BYTE_SIZE) && (sum>Constants.BYTE_SIZE)){
+			while(countFlag.get(0).get()<Constants.BUFFER_SIZE){
+				//等待
+				System.out.println(countFlag.get(0).get());
+				System.out.println("wait0...");
 			}
-			else {
-				if(sum<Constants.BUFFER_SIZE){
-					countFlag.get(0).addAndGet(size);
-				}
-				else if(sum<=2*Constants.BUFFER_SIZE) {
-					countFlag.get(1).addAndGet(size);
-				}
-				else if(sum<=Constants.BYTE_SIZE){
-					countFlag.get(2).addAndGet(size);
-				}
+			//提交第一部分
+			System.out.println("aa");
+			System.out.println(sum);
+			appendMessage(loopBytes,writeName);
+			countFlag.get(0).set(0);
+			shouldAppend.incrementAndGet();
+			logFileOffset.incrementAndGet();
+			int first=Constants.BYTE_SIZE-offset;
+			int last=sum-Constants.BYTE_SIZE;
+			countFlag.get(2).addAndGet(first);
+			countFlag.get(0).addAndGet(last);
+			System.arraycopy(messages, 0 ,loopBytes, offset, first);
+			System.arraycopy(messages, first, loopBytes, 0, last);
+			
+		
+		}
+		else {
+			if(sum<Constants.BUFFER_SIZE){
+				countFlag.get(0).addAndGet(size);
+			}
+			else if(sum<=2*Constants.BUFFER_SIZE) {
+				countFlag.get(1).addAndGet(size);
+			}
+			else if(sum<=Constants.BYTE_SIZE){
+				countFlag.get(2).addAndGet(size);
+			}
 
-				System.out.print(offset+" "+logFileOffset.get()+" ");
-				System.out.println(size);
-				System.arraycopy(messages, 0 ,loopBytes, offset, size);
-			}
+			System.out.print(offset+" "+logFileOffset.get()+" ");
+			System.out.println(size);
+			System.arraycopy(messages, 0 ,loopBytes, offset, size);
+		}
 
 		
 		
@@ -255,7 +262,7 @@ public class CommitLog {
 		if(!(willWrite.getFileName().equals("LOG"+logName))){
 			willWrite=getNewLogFile(logName);
 		}
-		willWrite.doAppend(loopBytes);
+		willWrite.doAppend(messages);
 	}
 
 	// for Consumer
@@ -265,20 +272,26 @@ public class CommitLog {
 
 	// for Consumer
 	public FileChannel getLogFileChannelByFileID(String fileID) {
+		String fileName = "LOG" + fileID;
 		for (LogFile logFile : logFileList) {
-			if(fileID.equals(logFile.getFileName()))
+			if(fileName.equals(logFile.getFileName()))
 				return logFile.getFileChannel();
 		}
 		// twins loop for ...
 		for (LogFile logFile : logFileList) {
-			if(fileID.equals(logFile.getFileName()))
+			if(fileName.equals(logFile.getFileName()))
 				return logFile.getFileChannel();
 		}
 		return null; // ERROR 文件丢失？
 	}
 
 	// for Producer
-	public void flush() {
-		// TODO
+	public void flush(byte[] messages) {
+		int start=shouldAppend.get();
+		while(countFlag.get(start).get()<=Constants.BUFFER_SIZE && countFlag.get(start).get()>0){
+			appendMessage(messages,writeName);
+			countFlag.get(start).set(0);
+			start=shouldAppend.updateAndGet(x->x==2?0:++x);
+		}
 	}
 }
