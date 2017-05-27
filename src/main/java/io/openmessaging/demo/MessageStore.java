@@ -18,7 +18,6 @@ public class MessageStore {
 
 	private final String path;
 	private ReentrantLock fileWriteLock = new ReentrantLock();
-
 	private HashMap<String, CommitLog> commitLogCache = new HashMap<>();
 
 	// for Producer
@@ -48,6 +47,7 @@ public class MessageStore {
 			commitLog = CommitLogHandler.getCommitLogByName(path, bucket);
 			commitLogCache.put(bucket, commitLog);
 		}
+		fileWriteLock.lock();
 		Index newIndex = commitLog.appendIndex(messages.length);
 		lastIndex.put(bucket, newIndex);
 		// Step 3: 写 Message

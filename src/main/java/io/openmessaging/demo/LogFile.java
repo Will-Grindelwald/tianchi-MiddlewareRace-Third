@@ -28,25 +28,37 @@ public class LogFile {
 			this.fileChannel = this.file.getChannel();
 			this.writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0, Constants.BUFFER_SIZE);
 		} catch (IOException e) {
+			e.printStackTrace();
 			throw new ClientOMSException("LogFile create failure", e);
 		}
 	}
 
 	// for Producer
-	public void doAppend(byte[] bytes) {
+	public void doAppend(byte[] bytes,int offsetSize) {
 		try {
 			if (offset.get() > 4) {
 				offset.set(0);
 			}
+//			System.out.print(" "+offsetSize);
+//			System.out.println("2cc"+writeMappedByteBuffer.position());
 			if(writeMappedByteBuffer.remaining()<bytes.length){
+				int first=writeMappedByteBuffer.remaining();
+				
+				int last=bytes.length-first;
+				writeMappedByteBuffer.put(bytes, 0, first);
+				writeMappedByteBuffer.flip();
+				writeMappedByteBuffer.force();
 				writeMappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, offset.get()*Constants.BUFFER_SIZE,
 						Constants.BUFFER_SIZE);
-
+				writeMappedByteBuffer.clear();
+				writeMappedByteBuffer.put(bytes,first,bytes.length - first);				
 			}
-			writeMappedByteBuffer.put(bytes);
-			offset.incrementAndGet();
+			else{
+				writeMappedByteBuffer.put(bytes);
+				offset.incrementAndGet();
+			}
 
-			
+
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -58,7 +70,6 @@ public class LogFile {
 //			writeMappedByteBuffer.put(bytes,(offset.get())*Constants.BUFFER_SIZE,Constants.BUFFER_SIZE);
 //		}
 
-		writeMappedByteBuffer.clear();
 	}
 
 	// for Consumer

@@ -188,47 +188,64 @@ public class CommitLog {
 	}
 
 	public void appendMessage0(byte[] messages, int logFileID, int offset) {
+		fileWriteLock.lock();
 		int  size = messages.length;
-	
-		if(offset==0){
-			shouldWirteName.put(this.path, logFileID);
-		}
 		while (offset >= (Constants.BYTE_SIZE)) {
 			offset -= (Constants.BYTE_SIZE);
+			}
+		//System.out.println(this.path+"should write "+logFileID+"offset:"+offset+"size:"+(offset+size));
+		LogFile willWrite=getLastLogFile();
+		if(!(willWrite.getFileName().equals("LOG"+logFileID))){
+			//System.out.println(this.path+"创建新的file"+logFileID);
+			willWrite=getNewLogFile(logFileID+"");
 		}
-		 int offset1=offset;
-		System.out.println(this.path+"should write "+logFileID+"offset:"+offset+"size:"+(offset+size));
 		
-		//存放不下
-		int sum=offset+size;
-		if(sum > Constants.BUFFER_SIZE){
-			System.out.println(this.path+"should write "+logFileID+"offset:"+offset+"size:"+(sum)+"分批");
-			System.arraycopy(messages, 0, loopBytes, offset, Constants.BUFFER_SIZE-offset);
-			logFileOffset.compute(this.path, (k,v)->v==null?Constants.BUFFER_SIZE-offset1:v+Constants.BUFFER_SIZE-offset1);
-//			logFileOffset.addAndGet(Constants.BUFFER_SIZE-offset);
-			System.out.println(Constants.BUFFER_SIZE-offset+" "+lastFileId);
-			//之前的数组满了，提交写入
-			while(logFileOffset.get(this.path)<Constants.BUFFER_SIZE){
-				System.out.print(this.path);
-				System.out.println("wait,,1");
-			}
-			
-			appendMessage(loopBytes, shouldWirteName.get(this.path));
-			logFileOffset.compute(this.path, (k,v)->0);
-			System.arraycopy(messages, 0, loopBytes, 0, offset+size-Constants.BUFFER_SIZE);
-			lastFileId=logFileID;
-			logFileOffset.compute(this.path, (k,v)->v==null?offset1+size-Constants.BUFFER_SIZE:v+offset1+size-Constants.BUFFER_SIZE);
-//			logFileOffset.addAndGet(offset+size-Constants.BUFFER_SIZE);
-		}
-		else if(sum <= Constants.BUFFER_SIZE){
-			System.arraycopy(messages, 0, loopBytes, offset,size);
-//			logFileOffset.addAndGet(size);
-			logFileOffset.compute(this.path, (k,v)->v==null?size:v+size);
-			if(logFileOffset.get(this.path)==Constants.BUFFER_SIZE){
-				appendMessage(loopBytes,shouldWirteName.get(this.path));
-				logFileOffset.put(this.path, 0);
-			}
-		}
+		willWrite.doAppend(messages,offset);
+		fileWriteLock .unlock();
+		
+		
+		
+//		int  size = messages.length;
+//	
+//		if(offset==0){
+//			shouldWirteName.put(this.path, logFileID);
+//		}
+//		while (offset >= (Constants.BYTE_SIZE)) {
+//			offset -= (Constants.BYTE_SIZE);
+//		}
+//		 int offset1=offset;
+//		System.out.println(this.path+"should write "+logFileID+"offset:"+offset+"size:"+(offset+size));
+//		
+//		//存放不下
+//		int sum=offset+size;
+//		if(sum > Constants.BUFFER_SIZE){
+//			System.out.println(this.path+"should write "+logFileID+"offset:"+offset+"size:"+(sum)+"分批");
+//			System.arraycopy(messages, 0, loopBytes, offset, Constants.BUFFER_SIZE-offset);
+//			logFileOffset.compute(this.path, (k,v)->v==null?Constants.BUFFER_SIZE-offset1:v+Constants.BUFFER_SIZE-offset1);
+////			logFileOffset.addAndGet(Constants.BUFFER_SIZE-offset);
+//			System.out.println(Constants.BUFFER_SIZE-offset+" "+lastFileId);
+//			//之前的数组满了，提交写入
+//			while(logFileOffset.get(this.path)<Constants.BUFFER_SIZE){
+//				System.out.print(this.path);
+//				System.out.println("wait,,1");
+//			}
+//			
+//			appendMessage(loopBytes, shouldWirteName.get(this.path));
+//			logFileOffset.compute(this.path, (k,v)->0);
+//			System.arraycopy(messages, 0, loopBytes, 0, offset+size-Constants.BUFFER_SIZE);
+//			lastFileId=logFileID;
+//			logFileOffset.compute(this.path, (k,v)->v==null?offset1+size-Constants.BUFFER_SIZE:v+offset1+size-Constants.BUFFER_SIZE);
+////			logFileOffset.addAndGet(offset+size-Constants.BUFFER_SIZE);
+//		}
+//		else if(sum <= Constants.BUFFER_SIZE){
+//			System.arraycopy(messages, 0, loopBytes, offset,size);
+////			logFileOffset.addAndGet(size);
+//			logFileOffset.compute(this.path, (k,v)->v==null?size:v+size);
+//			if(logFileOffset.get(this.path)==Constants.BUFFER_SIZE){
+//				appendMessage(loopBytes,shouldWirteName.get(this.path));
+//				logFileOffset.put(this.path, 0);
+//			}
+//		}
 //		else{
 //			System.arraycopy(messages, 0, loopBytes, offset,size);
 //			logFileOffset.addAndGet(size);
@@ -351,7 +368,7 @@ public class CommitLog {
 		if(!(willWrite.getFileName().equals("LOG"+logName))){
 			willWrite=getNewLogFile(logName+"");
 		}
-		willWrite.doAppend(messages);
+//		willWrite.doAppend(messages);
 	}
 
 	// for Consumer

@@ -44,7 +44,7 @@ public class DefaultPullConsumer implements PullConsumer {
 			bucket = bucketList.get(lastIndex);
 			message = messageStore.pollMessage(bucket);
 			if (message != null) {
-				System.out.println("有消息了");
+//				System.out.println("有消息了");
 				return message;
 			}
 			// 只有不命中时才 lastIndex++, 命中时(此 topic 有新 message)会下一次继续读此 topic

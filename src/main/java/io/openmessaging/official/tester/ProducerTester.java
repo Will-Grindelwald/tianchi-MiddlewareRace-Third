@@ -100,6 +100,7 @@ public class ProducerTester {
 			ts[i].join();
 		}
 		long end = System.currentTimeMillis();
+		System.out.println("Produce Finished, Cost "+ (end - start));
 		logger.info("Produce Finished, Cost {} ms", end - start);
 	}
 }
