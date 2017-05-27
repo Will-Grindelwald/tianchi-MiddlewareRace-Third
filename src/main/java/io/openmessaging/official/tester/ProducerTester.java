@@ -63,10 +63,10 @@ public class ProducerTester {
             while (true) {
                 try {
                     String queueOrTopic;
-                    if (sendNum % 2 == 0) {
-                        queueOrTopic = "QUEUE_" + random.nextInt(2);
+                    if (sendNum % 10 == 0) {
+                        queueOrTopic = "QUEUE_" + random.nextInt(10);
                     } else {
-                        queueOrTopic = "TOPIC_" + random.nextInt(2);
+                        queueOrTopic = "TOPIC_" + random.nextInt(10);
                     }
                     byte[] var = (label + "_" + offsets.get(queueOrTopic)).getBytes();
                     System.arraycopy(var, 0, news, news.length - var.length, var.length);
