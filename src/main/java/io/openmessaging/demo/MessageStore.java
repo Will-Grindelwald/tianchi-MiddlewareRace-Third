@@ -5,7 +5,6 @@ import java.nio.channels.FileChannel;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.concurrent.locks.ReentrantLock;
 
 import io.openmessaging.BytesMessage;
 import io.openmessaging.Message;
@@ -15,9 +14,9 @@ public class MessageStore {
 
 	private final String path;
 	private HashMap<String, CommitLog> commitLogCache = new HashMap<>();
+	private HashMap<String, CommitLog2> commitLogCache2 = new HashMap<>();
 
 	// for Producer
-	private ReentrantLock fileWriteLock = new ReentrantLock();
 	private final ByteBuffer KVToBytesBuffer = ByteBuffer.allocate(2 * 1024 * 1024);
 	private HashMap<String, Index> lastIndex = new HashMap<>();
 
@@ -26,6 +25,9 @@ public class MessageStore {
 	private final HashMap<String, Integer> offsets = new HashMap<>();
 	private final ReadBuffer readIndexFileBuffer = new ReadBuffer();
 	private final ReadBuffer readLogFileBuffer = new ReadBuffer();
+
+	// for test
+	private boolean flag = false;
 
 	public MessageStore(String path) {
 		this.path = path;
@@ -38,45 +40,81 @@ public class MessageStore {
 		// Step 1: message to byte[]
 		byte[] messages = messageToBytes(message);
 		// Step 2: 注册 Index
-		CommitLog commitLog;
-		if ((commitLog = commitLogCache.get(bucket)) == null) {
-			commitLog = CommitLogHandler.getCommitLogByName(path, bucket);
-			commitLogCache.put(bucket, commitLog);
+		if (flag) {
+			CommitLog commitLog;
+			if ((commitLog = commitLogCache.get(bucket)) == null) {
+				commitLog = CommitLogHandler.getCommitLogByName(path, bucket);
+				commitLogCache.put(bucket, commitLog);
+			}
+			Index newIndex = commitLog.appendIndex(messages.length);
+			lastIndex.put(bucket, newIndex);
+			// Step 3: 写 Message
+			commitLog.appendMessage(messages, newIndex.fileID, newIndex.offset);
+		} else {
+			CommitLog2 commitLog;
+			if ((commitLog = commitLogCache2.get(bucket)) == null) {
+				commitLog = CommitLogHandler2.getCommitLogByName(path, bucket);
+				commitLogCache2.put(bucket, commitLog);
+			}
+			Index newIndex = commitLog.appendIndex(messages.length);
+			lastIndex.put(bucket, newIndex);
+			// Step 3: 写 Message
+			commitLog.appendMessage(messages, newIndex.fileID, newIndex.offset);
 		}
-		fileWriteLock.lock();
-		Index newIndex = commitLog.appendIndex(messages.length);
-		lastIndex.put(bucket, newIndex);
-		// Step 3: 写 Message
-		commitLog.appendMessage(messages, newIndex.fileID, newIndex.offset);
-		fileWriteLock.unlock();
 	}
 
 	// for Consumer
 	// 利用 MappedBuffer 读 message
 	public Message pollMessage(String bucket) {
-		CommitLog commitLog;
-		if ((commitLog = commitLogCache.get(bucket)) == null) {
-			commitLog = CommitLogHandler.getCommitLogByName(path, bucket);
-			commitLogCache.put(bucket, commitLog);
+		if (flag) {
+			CommitLog commitLog;
+			if ((commitLog = commitLogCache.get(bucket)) == null) {
+				commitLog = CommitLogHandler.getCommitLogByName(path, bucket);
+				commitLogCache.put(bucket, commitLog);
+			}
+			// Step 1: 读 Index
+			int offsetInIndexFile = offsets.getOrDefault(bucket, Integer.valueOf(0));
+			FileChannel indexFileChannel = commitLog.getIndexFileChannel();
+			byte[] index = readIndexFileBuffer.read(bucket, indexFileChannel, offsetInIndexFile, Constants.INDEX_SIZE);
+			if (index == null)
+				return null;
+
+			// Step 2: 读 Message
+			int offsetInLogFile = Index.getOffset(index), messageSize = Index.getSize(index);
+			FileChannel logFileChannel = commitLog.getLogFileChannelByFileID(Index.getFileID(index));
+			byte[] messageBytes = readLogFileBuffer.read(bucket, logFileChannel, offsetInLogFile, messageSize);
+			if (messageBytes == null)
+				return null; // ERROR 有 index 无 message
+
+			// Step 2: 更新 Offset
+			Message result = bytesToMessage(messageBytes);
+			offsets.put(bucket, offsetInIndexFile + Constants.INDEX_SIZE);
+			return result;
+		} else {
+			CommitLog2 commitLog;
+			if ((commitLog = commitLogCache2.get(bucket)) == null) {
+				commitLog = CommitLogHandler2.getCommitLogByName(path, bucket);
+				commitLogCache2.put(bucket, commitLog);
+			}
+			// Step 1: 读 Index
+			int offsetInIndexFile = offsets.getOrDefault(bucket, Integer.valueOf(0));
+			FileChannel indexFileChannel = commitLog.getIndexFileChannel();
+			byte[] index = readIndexFileBuffer.read(bucket, indexFileChannel, offsetInIndexFile, Constants.INDEX_SIZE);
+			if (index == null)
+				return null;
+
+			// Step 2: 读 Message
+			int offsetInLogFile = Index.getOffset(index), messageSize = Index.getSize(index);
+			FileChannel logFileChannel = commitLog.getLogFileChannelByFileID(Index.getFileID(index));
+			byte[] messageBytes = readLogFileBuffer.read(bucket, logFileChannel, offsetInLogFile, messageSize);
+			if (messageBytes == null)
+				return null; // ERROR 有 index 无 message
+
+			// Step 2: 更新 Offset
+			Message result = bytesToMessage(messageBytes);
+			offsets.put(bucket, offsetInIndexFile + Constants.INDEX_SIZE);
+			return result;
 		}
-		// Step 1: 读 Index
-		int offsetInIndexFile = offsets.getOrDefault(bucket, Integer.valueOf(0));
-		FileChannel indexFileChannel = commitLog.getIndexFileChannel();
-		byte[] index = readIndexFileBuffer.read(bucket, indexFileChannel, offsetInIndexFile, Constants.INDEX_SIZE);
-		if (index == null)
-			return null;
-
-		// Step 2: 读 Message
-		int offsetInLogFile = Index.getOffset(index), messageSize = Index.getSize(index);
-		FileChannel logFileChannel = commitLog.getLogFileChannelByFileID(Index.getFileID(index));
-		byte[] messageBytes = readLogFileBuffer.read(bucket, logFileChannel, offsetInLogFile, messageSize);
-		if (messageBytes == null)
-			return null; // ERROR 有 index 无 message
-
-		// Step 2: 更新 Offset
-		Message result = bytesToMessage(messageBytes);
-		offsets.put(bucket, offsetInIndexFile + Constants.INDEX_SIZE);
-		return result;
 	}
 
 	// for Producer
@@ -241,7 +279,11 @@ public class MessageStore {
 			Map.Entry<String, Index> entry = iterator.next();
 			bucket = entry.getKey();
 			value = entry.getValue();
-			commitLogCache.get(bucket).flush(value);
+			if (flag) {
+				commitLogCache.get(bucket).flush(value);
+			} else {
+				commitLogCache2.get(bucket).flush(value);
+			}
 		}
 	}
 }

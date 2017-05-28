@@ -1,8 +1,11 @@
 package io.openmessaging.demo;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 
 /**
  * READ ONLY MappedByteBuffer Wrapper
@@ -84,5 +87,23 @@ public class ReadBuffer {
 			buffer.get(result);
 		}
 		return result;
+	}
+
+	@SuppressWarnings("unchecked")
+	public static void clean(final Object buffer) {
+		AccessController.doPrivileged(new PrivilegedAction() {
+			@SuppressWarnings("restriction")
+			public Object run() {
+				try {
+					Method getCleanerMethod = buffer.getClass().getMethod("cleaner", new Class[0]);
+					getCleanerMethod.setAccessible(true);
+					sun.misc.Cleaner cleaner = (sun.misc.Cleaner) getCleanerMethod.invoke(buffer, new Object[0]);
+					cleaner.clean();
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+				return null;
+			}
+		});
 	}
 }
