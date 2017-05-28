@@ -61,7 +61,6 @@ public class CommitLog {
 				}
 			}
 		} catch (IOException e) {
-			e.printStackTrace();
 			throw new ClientOMSException("Last create failure", e);
 		}
 		// indexFile
@@ -96,7 +95,7 @@ public class CommitLog {
 		logFileList.add(newFile);
 		return newFile;
 	}
-	public void  appendMessage(byte[] messages){
+//	public void  appendMessage(byte[] messages){
 //		fileWriteLock.lock();
 //		int size = messages.length;
 //		// appendIndex是否返回Name待定
@@ -179,15 +178,14 @@ public class CommitLog {
 //		}
 //
 //		fileWriteLock.unlock();
-		
-	}
+//	}
 
 	public Index appendIndex(int size) {
 		// appendIndex是否返回Name待定
-		return indexFile.appendIndex0(size);
+		return indexFile.appendIndex(size);
 	}
 
-	public void appendMessage0(byte[] messages, int logFileID, int offset) {
+	public void appendMessage(byte[] messages, int logFileID, int offset) {
 		fileWriteLock.lock();
 		int  size = messages.length;
 		while (offset >= (Constants.BYTE_SIZE)) {
@@ -434,7 +432,7 @@ public class CommitLog {
 	}
 
 	// for Producer
-	// synchronized for lastIndex
+	// synchronized for lastIndex and lastFile
 	public synchronized void flush(Index lastIndexOfProducer) {
 		// 1. update lastIndex
 		if (lastIndex.fileID == lastIndexOfProducer.fileID) {

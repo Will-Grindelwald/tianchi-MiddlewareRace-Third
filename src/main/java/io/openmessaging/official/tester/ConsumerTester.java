@@ -82,7 +82,7 @@ public class ConsumerTester {
 					String body = new String(message.getBody());
 					int index = body.lastIndexOf("_");
 					String producer = body.substring(index - 10, index);
-					System.err.println(producer);
+					System.out.println(producer);
 					int offset = Integer.parseInt(body.substring(index + 1));
 					if (offset != offsets.get(queueOrTopic).get(producer)) {
 						logger.error("Offset not equal expected:{} actual:{} producer:{} queueOrTopic:{}",

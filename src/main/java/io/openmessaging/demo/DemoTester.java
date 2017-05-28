@@ -77,29 +77,30 @@ public class DemoTester {
 				// 实际测试时，会一一比较各个字段
 				if (topic != null) {
 					Assert.assertEquals(topic1, topic);
-					if(messagesForTopic1.get(topic1Offset++).headers().getString(MessageHeader.TOPIC).equals(message.headers().getString(MessageHeader.TOPIC))){
+					if (messagesForTopic1.get(topic1Offset++).headers().getString(MessageHeader.TOPIC)
+							.equals(message.headers().getString(MessageHeader.TOPIC))) {
 						System.out.println(topic1Offset);
 						System.out.println("ok");
-					}
-					else{
+					} else {
 						System.out.println("error");
 					}
 				} else {
 					Assert.assertEquals(queue1, queue);
-//					Assert.assertEquals(messagesForQueue1.get(queue1Offset++), message);
-					if(messagesForQueue1.get(queue1Offset++).headers().getString(MessageHeader.QUEUE).equals(message.headers().getString(MessageHeader.QUEUE))){
+					// Assert.assertEquals(messagesForQueue1.get(queue1Offset++),
+					// message);
+					if (messagesForQueue1.get(queue1Offset++).headers().getString(MessageHeader.QUEUE)
+							.equals(message.headers().getString(MessageHeader.QUEUE))) {
 						System.out.println("ok");
 						System.out.println(queue1Offset);
-					}
-					else{
+					} else {
 						System.out.println("error");
 					}
 				}
 			}
 			long endConsumer = System.currentTimeMillis();
 			long T2 = endConsumer - startConsumer;
-			System.out.println(T2+T1);
-			System.out.println(queue1Offset+topic1Offset);
+			System.out.println(T2 + T1);
+			System.out.println(queue1Offset + topic1Offset);
 			System.out.println((queue1Offset + topic1Offset) / (T1 + T2));
 			System.out.println(
 					String.format("Team1 cost:%d ms tps:%d q/ms", T2 + T1, (queue1Offset + topic1Offset) / (T1 + T2)));

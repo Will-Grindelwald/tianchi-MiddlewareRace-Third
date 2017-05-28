@@ -1,8 +1,5 @@
 package io.openmessaging.demo;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.HashMap;
@@ -17,10 +14,10 @@ import io.openmessaging.Message;
 public class MessageStore {
 
 	private final String path;
-	private ReentrantLock fileWriteLock = new ReentrantLock();
 	private HashMap<String, CommitLog> commitLogCache = new HashMap<>();
 
 	// for Producer
+	private ReentrantLock fileWriteLock = new ReentrantLock();
 	private final ByteBuffer KVToBytesBuffer = ByteBuffer.allocate(2 * 1024 * 1024);
 	private HashMap<String, Index> lastIndex = new HashMap<>();
 
@@ -41,9 +38,8 @@ public class MessageStore {
 		// Step 1: message to byte[]
 		byte[] messages = messageToBytes(message);
 		// Step 2: 注册 Index
-		fileWriteLock.lock();
 		CommitLog commitLog;
-		if((commitLog = commitLogCache.get(bucket)) == null) {
+		if ((commitLog = commitLogCache.get(bucket)) == null) {
 			commitLog = CommitLogHandler.getCommitLogByName(path, bucket);
 			commitLogCache.put(bucket, commitLog);
 		}
@@ -51,7 +47,7 @@ public class MessageStore {
 		Index newIndex = commitLog.appendIndex(messages.length);
 		lastIndex.put(bucket, newIndex);
 		// Step 3: 写 Message
-		commitLog.appendMessage0(messages, newIndex.fileID, newIndex.offset);
+		commitLog.appendMessage(messages, newIndex.fileID, newIndex.offset);
 		fileWriteLock.unlock();
 	}
 
@@ -78,8 +74,9 @@ public class MessageStore {
 			return null; // ERROR 有 index 无 message
 
 		// Step 2: 更新 Offset
+		Message result = bytesToMessage(messageBytes);
 		offsets.put(bucket, offsetInIndexFile + Constants.INDEX_SIZE);
-		return bytesToMessage(messageBytes);
+		return result;
 	}
 
 	// for Producer
@@ -91,8 +88,8 @@ public class MessageStore {
 	 *  ------------------------------------------------------------------------
 	 */
 	public byte[] messageToBytes(Message message) {
-		byte[] byteHeaders = defaultKeyValueToBytes0((DefaultKeyValue) (message.headers()));
-		byte[] byteProperties = defaultKeyValueToBytes0((DefaultKeyValue) message.properties());
+		byte[] byteHeaders = defaultKeyValueToBytes((DefaultKeyValue) (message.headers()));
+		byte[] byteProperties = defaultKeyValueToBytes((DefaultKeyValue) message.properties());
 		byte[] byteBody = ((BytesMessage) message).getBody();
 		byte[] result = new byte[3 * 4 + byteBody.length + byteHeaders.length + byteProperties.length];
 		int pos = 0;
@@ -113,7 +110,7 @@ public class MessageStore {
 
 	// for Producer
 	// defaultKeyValueToBytes 的另一种解决方案
-	public byte[] defaultKeyValueToBytes0(DefaultKeyValue kv) {
+	public byte[] defaultKeyValueToBytes(DefaultKeyValue kv) {
 		if (kv == null) {
 			return new byte[0];
 		}
@@ -123,25 +120,25 @@ public class MessageStore {
 		for (String key : kv.keySet()) {
 			value = kv.get(key);
 			if (value instanceof Integer) {
-				KVToBytesBuffer.put((byte)0);
+				KVToBytesBuffer.put((byte) 0);
 				keyBytes = key.getBytes();
 				KVToBytesBuffer.putInt(keyBytes.length);
 				KVToBytesBuffer.put(keyBytes);
 				KVToBytesBuffer.putInt((Integer) value);
 			} else if (value instanceof Long) {
-				KVToBytesBuffer.put((byte)1);
+				KVToBytesBuffer.put((byte) 1);
 				keyBytes = key.getBytes();
 				KVToBytesBuffer.putInt(keyBytes.length);
 				KVToBytesBuffer.put(keyBytes);
 				KVToBytesBuffer.putLong((Long) value);
 			} else if (value instanceof Double) {
-				KVToBytesBuffer.put((byte)2);
+				KVToBytesBuffer.put((byte) 2);
 				keyBytes = key.getBytes();
 				KVToBytesBuffer.putInt(keyBytes.length);
 				KVToBytesBuffer.put(keyBytes);
 				KVToBytesBuffer.putDouble((Double) value);
 			} else {
-				KVToBytesBuffer.put((byte)3);
+				KVToBytesBuffer.put((byte) 3);
 				keyBytes = key.getBytes();
 				KVToBytesBuffer.putInt(keyBytes.length);
 				KVToBytesBuffer.put(keyBytes);
@@ -154,24 +151,6 @@ public class MessageStore {
 		byte[] result = new byte[KVToBytesBuffer.remaining()];
 		KVToBytesBuffer.get(result);
 		return result;
-	}
-
-	// for Producer
-	public byte[] defaultKeyValueToBytes(DefaultKeyValue kv) {
-		if (kv == null) {
-			return new byte[0];
-		}
-		ByteArrayOutputStream bout = new ByteArrayOutputStream();
-		try (ObjectOutputStream out = new ObjectOutputStream(bout)) {
-			out.writeObject(kv.getKVS());
-			out.flush();
-			byte[] bytes = bout.toByteArray();
-			bout.close();
-			return bytes;
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return null;
 	}
 
 	// for Consumer
@@ -199,6 +178,9 @@ public class MessageStore {
 
 	// for Consumer
 	public DefaultKeyValue bytesToDefaultKeyValue(DefaultKeyValue kv, byte[] kvBytes, int offset, int length) {
+		if (kv == null) {
+			kv = new DefaultKeyValue();
+		}
 		int end = offset + length, intValue;
 		long longValue;
 		double doubleValue;
