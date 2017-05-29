@@ -1,7 +1,6 @@
 package io.openmessaging.demo;
 
 import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -12,13 +11,10 @@ import io.openmessaging.Message;
 // 一个 Producer/Consumer 一个，不会有并发
 public class MessageStore {
 
-	private final String path;
-	private HashMap<String, CommitLog> commitLogCache = new HashMap<>();
-	private HashMap<String, CommitLog2> commitLogCache2 = new HashMap<>();
+	private HashMap<String, Topic> topicCache = new HashMap<>();
 
 	// for Producer
 	private final ByteBuffer KVToBytesBuffer = ByteBuffer.allocate(2 * 1024 * 1024);
-	private HashMap<String, Index> lastIndex = new HashMap<>();
 
 	// for Consumer
 	// 存 <bucket name, offsetInIndexFile>
@@ -26,95 +22,54 @@ public class MessageStore {
 	private final ReadBuffer readIndexFileBuffer = new ReadBuffer();
 	private final ReadBuffer readLogFileBuffer = new ReadBuffer();
 
-	// for test
-	private boolean flag = false;
-
-	public MessageStore(String path) {
-		this.path = path;
+	public MessageStore() {
 	}
 
 	// for Producer
 	public void putMessage(String bucket, Message message) {
 		if (message == null)
 			return;
-		// Step 1: message to byte[]
-		byte[] messages = messageToBytes(message);
-		// Step 2: 注册 Index
-		if (flag) {
-			CommitLog commitLog;
-			if ((commitLog = commitLogCache.get(bucket)) == null) {
-				commitLog = CommitLogHandler.getCommitLogByName(path, bucket);
-				commitLogCache.put(bucket, commitLog);
-			}
-			Index newIndex = commitLog.appendIndex(messages.length);
-			lastIndex.put(bucket, newIndex);
-			// Step 3: 写 Message
-			commitLog.appendMessage(messages, newIndex.fileID, newIndex.offset);
-		} else {
-			CommitLog2 commitLog;
-			if ((commitLog = commitLogCache2.get(bucket)) == null) {
-				commitLog = CommitLogHandler2.getCommitLogByName(path, bucket);
-				commitLogCache2.put(bucket, commitLog);
-			}
-			Index newIndex = commitLog.appendIndex(messages.length);
-			lastIndex.put(bucket, newIndex);
-			// Step 3: 写 Message
-			commitLog.appendMessage(messages, newIndex.fileID, newIndex.offset);
+		// TODO 在这 or 移到 RegisterIndexService
+		byte[] messageByte = messageToBytes(message);
+
+		// 放入阻塞队列
+		Topic topic;
+		if ((topic = topicCache.get(bucket)) == null) {
+			topic = GlobalResource.getTopicByName(bucket);
+			topicCache.put(bucket, topic);
 		}
+		topic.putMessageToQueue(messageByte);
 	}
 
 	// for Consumer
 	// 利用 MappedBuffer 读 message
 	public Message pollMessage(String bucket) {
-		if (flag) {
-			CommitLog commitLog;
-			if ((commitLog = commitLogCache.get(bucket)) == null) {
-				commitLog = CommitLogHandler.getCommitLogByName(path, bucket);
-				commitLogCache.put(bucket, commitLog);
-			}
-			// Step 1: 读 Index
-			int offsetInIndexFile = offsets.getOrDefault(bucket, Integer.valueOf(0));
-			FileChannel indexFileChannel = commitLog.getIndexFileChannel();
-			byte[] index = readIndexFileBuffer.read(bucket, indexFileChannel, offsetInIndexFile, Constants.INDEX_SIZE);
-			if (index == null)
-				return null;
-
-			// Step 2: 读 Message
-			int offsetInLogFile = Index.getOffset(index), messageSize = Index.getSize(index);
-			FileChannel logFileChannel = commitLog.getLogFileChannelByFileID(Index.getFileID(index));
-			byte[] messageBytes = readLogFileBuffer.read(bucket, logFileChannel, offsetInLogFile, messageSize);
-			if (messageBytes == null)
-				return null; // ERROR 有 index 无 message
-
-			// Step 2: 更新 Offset
-			Message result = bytesToMessage(messageBytes);
-			offsets.put(bucket, offsetInIndexFile + Constants.INDEX_SIZE);
-			return result;
-		} else {
-			CommitLog2 commitLog;
-			if ((commitLog = commitLogCache2.get(bucket)) == null) {
-				commitLog = CommitLogHandler2.getCommitLogByName(path, bucket);
-				commitLogCache2.put(bucket, commitLog);
-			}
-			// Step 1: 读 Index
-			int offsetInIndexFile = offsets.getOrDefault(bucket, Integer.valueOf(0));
-			FileChannel indexFileChannel = commitLog.getIndexFileChannel();
-			byte[] index = readIndexFileBuffer.read(bucket, indexFileChannel, offsetInIndexFile, Constants.INDEX_SIZE);
-			if (index == null)
-				return null;
-
-			// Step 2: 读 Message
-			int offsetInLogFile = Index.getOffset(index), messageSize = Index.getSize(index);
-			FileChannel logFileChannel = commitLog.getLogFileChannelByFileID(Index.getFileID(index));
-			byte[] messageBytes = readLogFileBuffer.read(bucket, logFileChannel, offsetInLogFile, messageSize);
-			if (messageBytes == null)
-				return null; // ERROR 有 index 无 message
-
-			// Step 2: 更新 Offset
-			Message result = bytesToMessage(messageBytes);
-			offsets.put(bucket, offsetInIndexFile + Constants.INDEX_SIZE);
-			return result;
-		}
+//		Topic topic;
+//		if ((topic = topicCache.get(bucket)) == null) {
+//			topic = GlobalResource.getTopicByName(bucket);
+//			topicCache.put(bucket, topic);
+//		}
+//		// TODO 要修
+//		// Step 1: 读 Index
+//		int offsetInIndexFile = offsets.getOrDefault(bucket, Integer.valueOf(0));
+//		FileChannel indexFileChannel = topic.getIndexFileChannelByOffset(offsetInIndexFile);
+//		byte[] index = readIndexFileBuffer.read(bucket, indexFileChannel, offsetInIndexFile, Constants.INDEX_SIZE);
+//		if (index == null)
+//			return null;
+//
+//		// Step 2: 读 Message
+//		long offsetInLogFile = Index.getOffset(index);
+//		int messageSize = Index.getSize(index);
+//		FileChannel logFileChannel = topic.getLogFileChannelByOffset(offsetInLogFile);
+//		byte[] messageBytes = readLogFileBuffer.read(bucket, logFileChannel, offsetInLogFile, messageSize);
+//		if (messageBytes == null)
+//			return null; // ERROR 有 index 无 message
+//
+//		// Step 2: 更新 Offset
+//		Message result = bytesToMessage(messageBytes);
+//		offsets.put(bucket, offsetInIndexFile + Constants.INDEX_SIZE);
+//		return result;
+		return null;
 	}
 
 	// for Producer
@@ -272,18 +227,10 @@ public class MessageStore {
 	}
 
 	public void flush() {
-		String bucket;
-		Index value;
-		Iterator<Map.Entry<String, Index>> iterator = lastIndex.entrySet().iterator();
+		Iterator<Map.Entry<String, Topic>> iterator = topicCache.entrySet().iterator();
 		while (iterator.hasNext()) {
-			Map.Entry<String, Index> entry = iterator.next();
-			bucket = entry.getKey();
-			value = entry.getValue();
-			if (flag) {
-				commitLogCache.get(bucket).flush(value);
-			} else {
-				commitLogCache2.get(bucket).flush(value);
-			}
+			Map.Entry<String, Topic> entry = iterator.next();
+			entry.getValue().flush();
 		}
 	}
 }

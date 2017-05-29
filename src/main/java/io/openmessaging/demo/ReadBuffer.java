@@ -1,11 +1,8 @@
 package io.openmessaging.demo;
 
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 
 /**
  * READ ONLY MappedByteBuffer Wrapper
@@ -18,7 +15,7 @@ public class ReadBuffer {
 	private FileChannel mappedFileChannel;
 	private MappedByteBuffer buffer;
 	private int size;
-	private int offsetInFile;
+	private long offsetInFile; // 映射区的末尾在源文件中的 offset
 
 	public ReadBuffer() {
 		// do nothing
@@ -28,7 +25,7 @@ public class ReadBuffer {
 	 * return false when no more file content to map. that is to say:
 	 * mappedFileChannel.size() = offsetInFile
 	 */
-	public boolean reMap(String bucket, FileChannel fileChannel, int offset, int size) {
+	public boolean reMap(String bucket, FileChannel fileChannel, long offset, int size) {
 		try {
 			if (fileChannel.size() - offset < size) {
 				size = (int) (fileChannel.size() - offset);
@@ -51,7 +48,7 @@ public class ReadBuffer {
 		return reMap(bucket, mappedFileChannel, offsetInFile, size);
 	}
 
-	public boolean reMap(int offset, int size) {
+	public boolean reMap(long offset, int size) {
 		return reMap(bucket, mappedFileChannel, offset, size);
 	}
 
@@ -62,7 +59,7 @@ public class ReadBuffer {
 	 * @param length
 	 * @return null when no more new record
 	 */
-	public byte[] read(String bucket, FileChannel fileChannel, int offset, int length) {
+	public byte[] read(String bucket, FileChannel fileChannel, long offset, int length) {
 		// readIndexFileBuffer 缓存不命中
 		if (!bucket.equals(this.bucket)) { // 1. 不是同一个文件
 			if (!reMap(bucket, fileChannel, offset, Constants.BUFFER_SIZE))
@@ -89,21 +86,4 @@ public class ReadBuffer {
 		return result;
 	}
 
-	@SuppressWarnings("unchecked")
-	public static void clean(final Object buffer) {
-		AccessController.doPrivileged(new PrivilegedAction() {
-			@SuppressWarnings("restriction")
-			public Object run() {
-				try {
-					Method getCleanerMethod = buffer.getClass().getMethod("cleaner", new Class[0]);
-					getCleanerMethod.setAccessible(true);
-					sun.misc.Cleaner cleaner = (sun.misc.Cleaner) getCleanerMethod.invoke(buffer, new Object[0]);
-					cleaner.clean();
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-				return null;
-			}
-		});
-	}
 }

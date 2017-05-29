@@ -12,7 +12,7 @@ import io.openmessaging.PullConsumer;
 
 public class DefaultPullConsumer implements PullConsumer {
 	private final KeyValue properties;
-	private final MessageStore messageStore;
+	private final MessageStore messageStore = new MessageStore();
 
 	private String queue;
 	// 存 queue name & topic name, set 去重
@@ -24,7 +24,8 @@ public class DefaultPullConsumer implements PullConsumer {
 
 	public DefaultPullConsumer(KeyValue properties) {
 		this.properties = properties;
-		messageStore = new MessageStore(properties.getString("STORE_PATH"));
+		if (System.getProperty("path") == null)
+			System.setProperty("path", properties.getString("STORE_PATH"));
 	}
 
 	@Override
@@ -73,8 +74,6 @@ public class DefaultPullConsumer implements PullConsumer {
 		if (queue != null && !queue.equals(queueName)) {
 			throw new ClientOMSException("You have alreadly attached to a queue " + queue);
 		}
-		queue = queueName;
-		buckets.add(queueName);
 		buckets.addAll(topics);
 		bucketList.clear();
 		bucketList.addAll(buckets);
@@ -84,6 +83,11 @@ public class DefaultPullConsumer implements PullConsumer {
 		bucketList.sort(null);
 		// 3. 打乱顺序, 减少集中读一个 topic, 提高并发
 		// Collections.shuffle(bucketList);
+
+		// 最后消费 queue
+		queue = queueName;
+		buckets.add(queueName);
+		bucketList.add(queueName);
 	}
 
 }
