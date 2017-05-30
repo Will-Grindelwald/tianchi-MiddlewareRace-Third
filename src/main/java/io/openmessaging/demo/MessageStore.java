@@ -30,6 +30,9 @@ public class MessageStore {
 	public void putMessage(String bucket, Message message) {
 		if (message == null)
 			return;
+//		byte[] messageByteTmp = messageToBytes(message);
+//		byte[] messageByte = new byte[messageByteTmp.length];
+//		System.arraycopy(messageByteTmp, 0, messageByte, 0, messageByteTmp.length);
 		byte[] messageByte = messageToBytes(message);
 
 		// 放入阻塞队列
