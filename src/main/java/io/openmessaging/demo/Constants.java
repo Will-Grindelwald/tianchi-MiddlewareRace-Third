@@ -18,7 +18,7 @@ public class Constants {
 	public static final int LAST_FILE_SIZE = 28;
 
 	// for Mutli-Thread
-	public static final int REMAP_THREAD_CONUT = 2; // 用于 Buffer ReMap 的线程池 TODO 待测
-	public static final int WRITE_MESSAGE_THREAD_CONUT = 4; // 用于 Buffer ReMap 的线程池 TODO 待测
+	public static final int REMAP_THREAD_CONUT = 5; // 用于 Buffer ReMap 的线程池 TODO 待测
+	public static final int WRITE_MESSAGE_THREAD_CONUT = 10; // 用于 Buffer ReMap 的线程池 TODO 待测
 
 }
