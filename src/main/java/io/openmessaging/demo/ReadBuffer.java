@@ -5,8 +5,7 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 
 /**
- * READ ONLY MappedByteBuffer Wrapper
- * for Consumer
+ * READ ONLY MappedByteBuffer Wrapper for Consumer
  */
 // 仅用作 Consumer 的私有属性, 且对文件只读, 不会有竞争
 public class ReadBuffer {
@@ -53,10 +52,6 @@ public class ReadBuffer {
 	}
 
 	/**
-	 * @param bucket bucket's name
-	 * @param fileChannel the fileChannel of bucket
-	 * @param offset 
-	 * @param length
 	 * @return null when no more new record
 	 */
 	public byte[] read(String bucket, FileChannel fileChannel, long offset, int length) {

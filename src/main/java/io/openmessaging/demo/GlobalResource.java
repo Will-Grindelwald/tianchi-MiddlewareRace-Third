@@ -1,13 +1,14 @@
 package io.openmessaging.demo;
 
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class GlobalResource {
 
-	private static final ConcurrentHashMap<String, Topic> topicHandler = new ConcurrentHashMap<>();
+	private static final Map<String, Topic> topicHandler = new HashMap<>();
 
 	public static final LinkedBlockingQueue<WriteTask> WriteTaskBlockQueue = new LinkedBlockingQueue<>();
 
@@ -26,10 +27,10 @@ public class GlobalResource {
 	private GlobalResource() {
 	}
 
-	public static Topic getTopicByName(String bucket) {
+	public static synchronized Topic getTopicByName(String bucket) {
 		if (topicHandler.containsKey(bucket)) {
 			return topicHandler.get(bucket);
-		} else {
+		} else { // ??
 			topicHandler.put(bucket, new Topic(bucket));
 		}
 		return topicHandler.get(bucket);

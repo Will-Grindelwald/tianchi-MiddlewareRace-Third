@@ -13,28 +13,24 @@ public class Topic {
 
 	// Last file
 	private final LastFile lastFile;
-	private long lastIndexOffset;
+	// close flag for lastFile
+	private boolean close = false;
 
 	// IndexFile
 	private final CopyOnWriteArrayList<PersistenceFile> indexFileList = new CopyOnWriteArrayList<>();
-	private final byte[] lastIndex = new byte[Constants.INDEX_SIZE];
 	private WriteBuffer writeIndexFileBuffer;
 
 	// LogFiles
 	private final CopyOnWriteArrayList<PersistenceFile> logFileList = new CopyOnWriteArrayList<>();
-	private final byte[] logBuffer = new byte[Constants.BUFFER_SIZE];
 	private WriteBuffer writeLogFileBuffer;
 
 	private final LinkedBlockingQueue<byte[]> messageBlockQueue = new LinkedBlockingQueue<>();
 	// 伴生线程
-	private final Thread registerIndexService;
-
-	// for close
-	private boolean close = false;
+	private Thread registerIndexService;
 
 	public Topic(String bucket) {
 		this.bucket = bucket;
-		this.path = System.getProperty("path") + "/" + bucket;
+		path = System.getProperty("path") + "/" + bucket;
 		// topic dir
 		File file = new File(path);
 		if (file.exists()) {
@@ -45,7 +41,6 @@ public class Topic {
 		}
 		// Last file
 		lastFile = new LastFile(path);
-		lastIndexOffset = lastFile.lastIndexInIndexFile;
 		// indexFile
 		int tmpFileID;
 		for (String indexFile : file.list((dir, name) -> name.startsWith(Constants.INDEX_FILE_PREFIX))) {
@@ -60,14 +55,13 @@ public class Topic {
 		if (indexFileList.isEmpty()) {
 			indexFileList.add(new PersistenceFile(path, 0, Constants.INDEX_FILE_PREFIX));
 		}
-		writeIndexFileBuffer = new WriteBuffer(Constants.INDEX_FILE_PREFIX, indexFileList,
-				lastFile.lastIndexInIndexFile, 0);
+		writeIndexFileBuffer = new WriteBuffer(Constants.INDEX_FILE_PREFIX, indexFileList, lastFile.nextIndexOffset, 0);
 		// LogFiles
 		for (String indexFile : file.list((dir, name) -> name.startsWith(Constants.LOG_FILE_PREFIX))) {
 			try {
 				tmpFileID = Integer.valueOf(indexFile.substring(Constants.LOG_FILE_PREFIX.length()));
 			} catch (NumberFormatException e) {
-				System.err.println("indexFile name 错误");
+				System.err.println("logFile name 错误");
 				continue;
 			}
 			logFileList.add(new PersistenceFile(path, tmpFileID, Constants.LOG_FILE_PREFIX));
@@ -75,10 +69,8 @@ public class Topic {
 		if (logFileList.isEmpty()) {
 			logFileList.add(new PersistenceFile(path, 0, Constants.LOG_FILE_PREFIX));
 		}
-		writeLogFileBuffer = new WriteBuffer(Constants.LOG_FILE_PREFIX, logFileList, lastFile.lastIndex.offset,
+		writeLogFileBuffer = new WriteBuffer(Constants.LOG_FILE_PREFIX, logFileList, lastFile.nextMessageOffset,
 				Constants.BUFFER_SIZE);
-
-		// 放最后
 		registerIndexService = new Thread(new RegisterIndexService(this));
 		registerIndexService.start();
 	}
@@ -88,6 +80,12 @@ public class Topic {
 		try {
 			// 因为使用的是无界阻塞队列, 理应不会阻塞太久
 			messageBlockQueue.put(byteMessage);
+//			if (registerIndexService == null) {
+//				// 没有并发
+//				registerIndexService = new Thread(new RegisterIndexService(this));
+//				registerIndexService.start();
+//			}
+			System.out.println("messageQueue入" + messageBlockQueue.size()); //// test
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
@@ -100,17 +98,19 @@ public class Topic {
 
 	// for RegisterIndexService
 	public byte[] takeMessageFromQueue() throws InterruptedException {
+		System.out.println("messageQueue出" + (messageBlockQueue.size() - 1)); //// test
 		return messageBlockQueue.take();
 	}
 
 	// for RegisterIndexService
 	public long appendIndex(int size) throws InterruptedException {
-		long newOffset = Index.getOffset(lastIndex) + Index.getSize(lastIndex);
-		Index.setOffset(lastIndex, newOffset);
-		Index.setSize(lastIndex, size);
-		lastIndexOffset = writeIndexFileBuffer.write(lastIndex);
+		long newOffset = lastFile.nextMessageOffset;
+		Index.setOffset(lastFile.lastIndexByte, lastFile.nextMessageOffset);
+		Index.setSize(lastFile.lastIndexByte, size);
+		lastFile.nextIndexOffset += writeIndexFileBuffer.write(lastFile.lastIndexByte);
+		lastFile.nextMessageOffset += size;
 		if (close) {
-			lastFile.flush(newOffset, size, lastIndexOffset);
+			lastFile.flush();
 		}
 		return newOffset;
 	}
@@ -150,10 +150,10 @@ public class Topic {
 	}
 
 	// for Producer
-	public void flush() {
+	public void flush() throws InterruptedException {
 		close = true;
 		// 1. update lastIndex
-		lastFile.flush(Index.getOffset(lastIndex), Index.getSize(lastIndex), lastIndexOffset);
+		lastFile.flush();
 		// 2. flush writeIndexFileBuffer
 		writeIndexFileBuffer.flush();
 		// 3. flush writeLogFileBuffer
@@ -190,13 +190,16 @@ class RegisterIndexService implements Runnable {
 					System.arraycopy(messageByte, size1, part2, 0, part2.length);
 					GlobalResource.WriteTaskBlockQueue.put(new WriteTask(part1, bindTopic.bucket, newOffset));
 					GlobalResource.WriteTaskBlockQueue.put(new WriteTask(part2, bindTopic.bucket, newOffset + size1));
-					System.out.println("1a");
+					System.out.println("WriteQueue2入" + GlobalResource.WriteTaskBlockQueue.size()); //// test
+					// System.out.println("1a"); //// test
 				} else {
 					GlobalResource.WriteTaskBlockQueue.put(new WriteTask(messageByte, bindTopic.bucket, newOffset));
-					System.out.println("2a");
+					System.out.println("WriteQueue1入" + GlobalResource.WriteTaskBlockQueue.size()); //// test
+					// System.out.println("2a"); //// test
 				}
 				messageByte = null;
-			} catch (InterruptedException e) {
+			} catch (Exception e) {
+				// } catch (InterruptedException e) {
 				e.printStackTrace();
 			}
 		}

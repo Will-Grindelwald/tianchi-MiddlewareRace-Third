@@ -30,7 +30,6 @@ public class MessageStore {
 	public void putMessage(String bucket, Message message) {
 		if (message == null)
 			return;
-		// TODO 在这 or 移到 RegisterIndexService
 		byte[] messageByte = messageToBytes(message);
 
 		// 放入阻塞队列
@@ -50,7 +49,6 @@ public class MessageStore {
 			topic = GlobalResource.getTopicByName(bucket);
 			topicCache.put(bucket, topic);
 		}
-		// TODO 要修
 		// Step 1: 读 Index
 		long offsetInIndexFile = offsets.getOrDefault(bucket, Long.valueOf(0));
 		FileChannel indexFileChannel = topic.getIndexFileChannelByOffset(offsetInIndexFile);
@@ -66,7 +64,7 @@ public class MessageStore {
 		if (messageBytes == null)
 			return null; // ERROR 有 index 无 message
 
-		// Step 2: 更新 Offset
+		// Step 3: 更新 Offset
 		Message result = bytesToMessage(messageBytes);
 		offsets.put(bucket, offsetInIndexFile + Constants.INDEX_SIZE);
 		return result;
@@ -75,10 +73,10 @@ public class MessageStore {
 	// for Producer
 	/**
 	 * message 结构
-	 *  ------------------------------------------------------------------------
-	 *  |body.length| body |headers.length|headers|properties.length|properties|
-	 *  |int        |byte[]|int           |byte[] |int              |byte[]    |
-	 *  ------------------------------------------------------------------------
+	 * ------------------------------------------------------------------------
+	 * |body.length| body |headers.length|headers|properties.length|properties|
+	 * |int        |byte[]|int           |byte[] |int              |byte[]    |
+	 * ------------------------------------------------------------------------
 	 */
 	public byte[] messageToBytes(Message message) {
 		byte[] byteHeaders = defaultKeyValueToBytes((DefaultKeyValue) (message.headers()));

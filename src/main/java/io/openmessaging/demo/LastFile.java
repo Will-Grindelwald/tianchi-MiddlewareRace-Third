@@ -9,8 +9,9 @@ public class LastFile {
 	private final String fileName = Constants.LAST_FILE_NAME;
 	private final RandomAccessFile lastFile;
 
-	public Index lastIndex;
-	public long lastIndexInIndexFile;
+	public long nextIndexOffset;
+	public long nextMessageOffset;
+	public final byte[] lastIndexByte = new byte[Constants.INDEX_SIZE];
 
 	public LastFile(String path) {
 		this.path = path;
@@ -19,16 +20,20 @@ public class LastFile {
 			if (!last.exists()) {
 				last.createNewFile();
 				lastFile = new RandomAccessFile(last, "rw");
-				lastIndex = new Index(0, 0);
+				nextIndexOffset = 0;
+				nextMessageOffset = 0;
 			} else {
 				lastFile = new RandomAccessFile(last, "rw");
-				if (last.length() != Constants.INDEX_SIZE) {
-					lastIndex = new Index(0, 0);
+				if (last.length() != Constants.LAST_FILE_SIZE) {
+					nextIndexOffset = 0;
+					nextMessageOffset = 0;
 				} else {
+					nextIndexOffset = lastFile.readLong();
+					nextMessageOffset = lastFile.readLong();
 					long offset = lastFile.readLong();
 					int size = lastFile.readInt();
-					lastIndexInIndexFile = lastFile.readLong();
-					lastIndex = new Index(offset, size);
+					Index.setOffset(lastIndexByte, offset);
+					Index.setSize(lastIndexByte, size);
 				}
 			}
 		} catch (IOException e) {
@@ -36,19 +41,15 @@ public class LastFile {
 		}
 	}
 
-	public synchronized void flush(long lastMessageOffset, int lastMessageSize, long lastIndexInIndexFile) {
-		if (this.lastIndexInIndexFile < lastIndexInIndexFile) {
-			lastIndex.offset = lastMessageOffset;
-			lastIndex.size = lastMessageSize;
-			this.lastIndexInIndexFile = lastIndexInIndexFile;
-			try {
-				lastFile.seek(0);
-				lastFile.writeLong(lastIndex.offset);
-				lastFile.writeInt(lastIndex.size);
-				lastFile.writeLong(lastIndexInIndexFile);
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+	public synchronized void flush() {
+		try {
+			lastFile.seek(0);
+			lastFile.writeLong(nextIndexOffset);
+			lastFile.writeLong(nextMessageOffset);
+			lastFile.writeLong(Index.getOffset(lastIndexByte));
+			lastFile.writeInt(Index.getSize(lastIndexByte));
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 	}
 
