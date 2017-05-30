@@ -13,6 +13,7 @@ public class Topic {
 
 	// Last file
 	private final LastFile lastFile;
+	private long lastIndexOffset;
 
 	// IndexFile
 	private final CopyOnWriteArrayList<PersistenceFile> indexFileList = new CopyOnWriteArrayList<>();
@@ -28,6 +29,9 @@ public class Topic {
 	// 伴生线程
 	private final Thread registerIndexService;
 
+	// for close
+	private boolean close = false;
+
 	public Topic(String bucket) {
 		this.bucket = bucket;
 		this.path = System.getProperty("path") + "/" + bucket;
@@ -41,6 +45,7 @@ public class Topic {
 		}
 		// Last file
 		lastFile = new LastFile(path);
+		lastIndexOffset = lastFile.lastIndexInIndexFile;
 		// indexFile
 		int tmpFileID;
 		for (String indexFile : file.list((dir, name) -> name.startsWith(Constants.INDEX_FILE_PREFIX))) {
@@ -103,37 +108,62 @@ public class Topic {
 		long newOffset = Index.getOffset(lastIndex) + Index.getSize(lastIndex);
 		Index.setOffset(lastIndex, newOffset);
 		Index.setSize(lastIndex, size);
-		writeIndexFileBuffer.write(lastIndex);
+		lastIndexOffset = writeIndexFileBuffer.write(lastIndex);
+		if (close) {
+			lastFile.flush(newOffset, size, lastIndexOffset);
+		}
 		return newOffset;
 	}
 
 	// for Consumer
-	public FileChannel getIndexFileChannelByOffset() {
-		// TODO 重写！！
-		return null;
+	public FileChannel getIndexFileChannelByOffset(long offset) {
+		int fileID = (int) (offset % Constants.FILE_SIZE);
+		for (PersistenceFile indexFile : indexFileList) {
+			if (indexFile.fileID == fileID)
+				return indexFile.getFileChannel();
+		}
+		// twins for ...
+		for (PersistenceFile indexFile : indexFileList) {
+			if (indexFile.fileID == fileID)
+				return indexFile.getFileChannel();
+		}
+		return null; // 文件丢失??
 	}
 
 	// for Consumer
 	public FileChannel getLogFileChannelByOffset(long offset) {
-		// TODO 重写！！
-		return null;
+		int fileID = (int) (offset % Constants.FILE_SIZE);
+		for (PersistenceFile indexFile : indexFileList) {
+			if (indexFile.fileID == fileID)
+				return indexFile.getFileChannel();
+		}
+		// twins for ...
+		for (PersistenceFile indexFile : indexFileList) {
+			if (indexFile.fileID == fileID)
+				return indexFile.getFileChannel();
+		}
+		return null; // 文件丢失??
+	}
+
+	public int getBlockingMessageNumber() {
+		return messageBlockQueue.size();
 	}
 
 	// for Producer
 	public void flush() {
-		// 1. flush writeIndexFileBuffer
-		long lastIndexOffset = writeIndexFileBuffer.flush();
-		// 2. update lastIndex
-//		lastFile.flush(Index.getOffset(lastIndex), Index.getSize(lastIndex), lastIndexOffset);
+		close = true;
+		// 1. update lastIndex
+		lastFile.flush(Index.getOffset(lastIndex), Index.getSize(lastIndex), lastIndexOffset);
+		// 2. flush writeIndexFileBuffer
+		writeIndexFileBuffer.flush();
 		// 3. flush writeLogFileBuffer
-
+		writeLogFileBuffer.flush();
 	}
 
 }
 
 class RegisterIndexService implements Runnable {
 	private Topic bindTopic;
-	private byte[] messageByte = null;
 
 	public RegisterIndexService(Topic topic) {
 		bindTopic = topic;
@@ -141,6 +171,7 @@ class RegisterIndexService implements Runnable {
 
 	@Override
 	public void run() {
+		byte[] messageByte = null;
 		while (true) {
 			try {
 				// 1
@@ -159,8 +190,10 @@ class RegisterIndexService implements Runnable {
 					System.arraycopy(messageByte, size1, part2, 0, part2.length);
 					GlobalResource.WriteTaskBlockQueue.put(new WriteTask(part1, bindTopic.bucket, newOffset));
 					GlobalResource.WriteTaskBlockQueue.put(new WriteTask(part2, bindTopic.bucket, newOffset + size1));
+					System.out.println("1a");
 				} else {
 					GlobalResource.WriteTaskBlockQueue.put(new WriteTask(messageByte, bindTopic.bucket, newOffset));
+					System.out.println("2a");
 				}
 				messageByte = null;
 			} catch (InterruptedException e) {

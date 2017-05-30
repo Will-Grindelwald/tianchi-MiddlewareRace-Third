@@ -10,7 +10,8 @@ public class Constants {
 	public static final int BUFFER_SIZE = INDEX_SIZE * 2 * 1024 * 1024; // buffer 的大小限制 24 M TODO 待测 12 M?
 
 	// for logFile and indexFile
-	public static final int FILE_SIZE = BUFFER_SIZE * 50; // 文件的大小限制 50 个 Buffer 大小
+	public static final int BLOCK_NUMBER = 50;
+	public static final int FILE_SIZE = BUFFER_SIZE * BLOCK_NUMBER; // 文件的大小限制 50 个 Buffer 大小
 	public static final String INDEX_FILE_PREFIX = "Index";
 	public static final String LOG_FILE_PREFIX = "LOG";
 	public static final String LAST_FILE_NAME = "Last";

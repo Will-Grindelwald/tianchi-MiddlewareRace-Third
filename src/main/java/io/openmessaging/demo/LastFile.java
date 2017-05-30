@@ -36,18 +36,20 @@ public class LastFile {
 		}
 	}
 
-//	public synchronized void flush(long , int , long lastIndexOffset) {
-//		if (lastIndexInIndexFile < lastIndexOffset) {
-//			lastIndex = lastIndexOfProducer;
-//			try {
-//				lastFile.seek(0);
-//				lastFile.writeLong(lastIndex.offset);
-//				lastFile.writeInt(lastIndex.size);
-//				lastFile.writeLong(lastIndexOffset);
-//			} catch (IOException e) {
-//				e.printStackTrace();
-//			}
-//		}
-//	}
+	public synchronized void flush(long lastMessageOffset, int lastMessageSize, long lastIndexInIndexFile) {
+		if (this.lastIndexInIndexFile < lastIndexInIndexFile) {
+			lastIndex.offset = lastMessageOffset;
+			lastIndex.size = lastMessageSize;
+			this.lastIndexInIndexFile = lastIndexInIndexFile;
+			try {
+				lastFile.seek(0);
+				lastFile.writeLong(lastIndex.offset);
+				lastFile.writeInt(lastIndex.size);
+				lastFile.writeLong(lastIndexInIndexFile);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
 
 }

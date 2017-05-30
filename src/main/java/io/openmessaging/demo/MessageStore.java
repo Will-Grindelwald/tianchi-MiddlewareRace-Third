@@ -1,6 +1,7 @@
 package io.openmessaging.demo;
 
 import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -18,7 +19,7 @@ public class MessageStore {
 
 	// for Consumer
 	// 存 <bucket name, offsetInIndexFile>
-	private final HashMap<String, Integer> offsets = new HashMap<>();
+	private final HashMap<String, Long> offsets = new HashMap<>();
 	private final ReadBuffer readIndexFileBuffer = new ReadBuffer();
 	private final ReadBuffer readLogFileBuffer = new ReadBuffer();
 
@@ -44,32 +45,31 @@ public class MessageStore {
 	// for Consumer
 	// 利用 MappedBuffer 读 message
 	public Message pollMessage(String bucket) {
-//		Topic topic;
-//		if ((topic = topicCache.get(bucket)) == null) {
-//			topic = GlobalResource.getTopicByName(bucket);
-//			topicCache.put(bucket, topic);
-//		}
-//		// TODO 要修
-//		// Step 1: 读 Index
-//		int offsetInIndexFile = offsets.getOrDefault(bucket, Integer.valueOf(0));
-//		FileChannel indexFileChannel = topic.getIndexFileChannelByOffset(offsetInIndexFile);
-//		byte[] index = readIndexFileBuffer.read(bucket, indexFileChannel, offsetInIndexFile, Constants.INDEX_SIZE);
-//		if (index == null)
-//			return null;
-//
-//		// Step 2: 读 Message
-//		long offsetInLogFile = Index.getOffset(index);
-//		int messageSize = Index.getSize(index);
-//		FileChannel logFileChannel = topic.getLogFileChannelByOffset(offsetInLogFile);
-//		byte[] messageBytes = readLogFileBuffer.read(bucket, logFileChannel, offsetInLogFile, messageSize);
-//		if (messageBytes == null)
-//			return null; // ERROR 有 index 无 message
-//
-//		// Step 2: 更新 Offset
-//		Message result = bytesToMessage(messageBytes);
-//		offsets.put(bucket, offsetInIndexFile + Constants.INDEX_SIZE);
-//		return result;
-		return null;
+		Topic topic;
+		if ((topic = topicCache.get(bucket)) == null) {
+			topic = GlobalResource.getTopicByName(bucket);
+			topicCache.put(bucket, topic);
+		}
+		// TODO 要修
+		// Step 1: 读 Index
+		long offsetInIndexFile = offsets.getOrDefault(bucket, Long.valueOf(0));
+		FileChannel indexFileChannel = topic.getIndexFileChannelByOffset(offsetInIndexFile);
+		byte[] index = readIndexFileBuffer.read(bucket, indexFileChannel, offsetInIndexFile, Constants.INDEX_SIZE);
+		if (index == null)
+			return null;
+
+		// Step 2: 读 Message
+		long offsetInLogFile = Index.getOffset(index);
+		int messageSize = Index.getSize(index);
+		FileChannel logFileChannel = topic.getLogFileChannelByOffset(offsetInLogFile);
+		byte[] messageBytes = readLogFileBuffer.read(bucket, logFileChannel, offsetInLogFile, messageSize);
+		if (messageBytes == null)
+			return null; // ERROR 有 index 无 message
+
+		// Step 2: 更新 Offset
+		Message result = bytesToMessage(messageBytes);
+		offsets.put(bucket, offsetInIndexFile + Constants.INDEX_SIZE);
+		return result;
 	}
 
 	// for Producer
@@ -226,11 +226,26 @@ public class MessageStore {
 		return kv;
 	}
 
-	public void flush() {
+	public void flush() throws InterruptedException {
+		Label: while (true) {
+			// all topic 的 messageQueue 空了
+			Iterator<Map.Entry<String, Topic>> iterator = topicCache.entrySet().iterator();
+			while (iterator.hasNext()) {
+				if (iterator.next().getValue().getBlockingMessageNumber() != 0) {
+					Thread.sleep(1000);
+					continue Label;
+				}
+			}
+			// 全局的 WriteTaskQueue 空了
+			if (GlobalResource.WriteTaskBlockQueue.size() != 0) {
+				Thread.sleep(1000);
+				continue Label;
+			}
+			break;
+		}
 		Iterator<Map.Entry<String, Topic>> iterator = topicCache.entrySet().iterator();
 		while (iterator.hasNext()) {
-			Map.Entry<String, Topic> entry = iterator.next();
-			entry.getValue().flush();
+			iterator.next().getValue().flush();
 		}
 	}
 }

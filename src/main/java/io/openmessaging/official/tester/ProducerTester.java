@@ -63,10 +63,10 @@ public class ProducerTester {
             while (true) {
                 try {
                     String queueOrTopic;
-                    if (sendNum % 10 == 0) {
-                        queueOrTopic = "QUEUE_" + random.nextInt(10);
+                    if (sendNum % 2 == 0) {
+                        queueOrTopic = "QUEUE_" + random.nextInt(2);
                     } else {
-                        queueOrTopic = "TOPIC_" + random.nextInt(10);
+                        queueOrTopic = "TOPIC_" + random.nextInt(2);
                     }
                     byte[] var = (label + "_" + offsets.get(queueOrTopic)).getBytes();
                     System.arraycopy(var, 0, news, news.length - var.length, var.length);
@@ -74,7 +74,7 @@ public class ProducerTester {
                     logger.debug("queueOrTopic:{} offset:{}", queueOrTopic, label + "_" + offsets.get(queueOrTopic));
                     offsets.put(queueOrTopic, offsets.get(queueOrTopic) + 1);
                     producer.send(message);
-                    sendNum++;
+                    System.out.println(sendNum++);
                     if (sendNum >= Constants.PRO_MAX) {
                         break;
                     }

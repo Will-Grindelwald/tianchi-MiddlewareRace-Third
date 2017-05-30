@@ -19,7 +19,7 @@ public class GlobalResource {
 
 	static {
 		for (int i = 0; i < Constants.WRITE_MESSAGE_THREAD_CONUT; i++) {
-			WriteMessageExecPool.submit(new WriteMessageService());
+			WriteMessageExecPool.submit(new WriteMessageService(i));
 		}
 	}
 
@@ -29,8 +29,9 @@ public class GlobalResource {
 	public static Topic getTopicByName(String bucket) {
 		if (topicHandler.containsKey(bucket)) {
 			return topicHandler.get(bucket);
+		} else {
+			topicHandler.put(bucket, new Topic(bucket));
 		}
-		topicHandler.put(bucket, new Topic(bucket));
 		return topicHandler.get(bucket);
 	}
 }
