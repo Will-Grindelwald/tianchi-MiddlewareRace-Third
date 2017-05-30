@@ -225,21 +225,9 @@ public class MessageStore {
 	}
 
 	public void flush() throws InterruptedException {
-		Label: while (true) {
-			// all topic 的 messageQueue 空了
-			Iterator<Map.Entry<String, Topic>> iterator = topicCache.entrySet().iterator();
-			while (iterator.hasNext()) {
-				if (iterator.next().getValue().getBlockingMessageNumber() != 0) {
-					Thread.sleep(1000);
-					continue Label;
-				}
-			}
-			// 全局的 WriteTaskQueue 空了
-			if (GlobalResource.WriteTaskBlockQueue.size() != 0) {
-				Thread.sleep(1000);
-				continue Label;
-			}
-			break;
+		while (GlobalResource.getSizeOfWriteTaskBlockQueue() != 0) {
+			// 全局的 WriteTaskQueue 非空
+			Thread.sleep(1000);
 		}
 		Iterator<Map.Entry<String, Topic>> iterator = topicCache.entrySet().iterator();
 		while (iterator.hasNext()) {

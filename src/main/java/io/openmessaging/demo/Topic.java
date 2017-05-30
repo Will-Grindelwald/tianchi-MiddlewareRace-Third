@@ -3,7 +3,6 @@ package io.openmessaging.demo;
 import java.io.File;
 import java.nio.channels.FileChannel;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.LinkedBlockingQueue;
 
 // 一个 buchet 一个, 全局唯一, 小心并发
 public class Topic {
@@ -13,8 +12,7 @@ public class Topic {
 
 	// Last file
 	private final LastFile lastFile;
-	// close flag for lastFile
-	private boolean close = false;
+	private boolean close = false; // close flag for lastFile
 
 	// IndexFile
 	private final CopyOnWriteArrayList<PersistenceFile> indexFileList = new CopyOnWriteArrayList<>();
@@ -23,10 +21,6 @@ public class Topic {
 	// LogFiles
 	private final CopyOnWriteArrayList<PersistenceFile> logFileList = new CopyOnWriteArrayList<>();
 	private WriteBuffer writeLogFileBuffer;
-
-	private final LinkedBlockingQueue<byte[]> messageBlockQueue = new LinkedBlockingQueue<>();
-	// 伴生线程
-	private Thread registerIndexService;
 
 	public Topic(String bucket) {
 		this.bucket = bucket;
@@ -71,38 +65,30 @@ public class Topic {
 		}
 		writeLogFileBuffer = new WriteBuffer(Constants.LOG_FILE_PREFIX, logFileList, lastFile.nextMessageOffset,
 				Constants.BUFFER_SIZE);
-		registerIndexService = new Thread(new RegisterIndexService(this));
-		registerIndexService.start();
 	}
 
 	// for Producer
 	public void putMessageToQueue(byte[] byteMessage) {
 		try {
-			// 因为使用的是无界阻塞队列, 理应不会阻塞太久
-			messageBlockQueue.put(byteMessage);
-//			if (registerIndexService == null) {
-//				// 没有并发
-//				registerIndexService = new Thread(new RegisterIndexService(this));
-//				registerIndexService.start();
-//			}
-			System.out.println("messageQueue入" + messageBlockQueue.size()); //// test
+			long newOffset = appendIndex(byteMessage.length);
+			long lastByteOffset = newOffset + byteMessage.length - 1;
+			// 跨 buffer 的, 分为两个放入 Queue
+			if (newOffset / Constants.BUFFER_SIZE != lastByteOffset / Constants.BUFFER_SIZE) {
+				int size1 = (int) (Constants.BUFFER_SIZE - newOffset % Constants.BUFFER_SIZE);
+				byte[] part1 = new byte[size1], part2 = new byte[byteMessage.length - size1];
+				System.arraycopy(byteMessage, 0, part1, 0, size1);
+				System.arraycopy(byteMessage, size1, part2, 0, part2.length);
+				GlobalResource.putWriteTask(new WriteTask(part1, bucket, newOffset));
+				GlobalResource.putWriteTask(new WriteTask(part2, bucket, newOffset + size1));
+			} else {
+				GlobalResource.putWriteTask(new WriteTask(byteMessage, bucket, newOffset));
+			}
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
 	}
 
-	// for WriteMessageService
-	public void appendMessageBytes(byte[] bytes, long offset) throws InterruptedException {
-		writeLogFileBuffer.write(bytes, offset);
-	}
-
-	// for RegisterIndexService
-	public byte[] takeMessageFromQueue() throws InterruptedException {
-		System.out.println("messageQueue出" + (messageBlockQueue.size() - 1)); //// test
-		return messageBlockQueue.take();
-	}
-
-	// for RegisterIndexService
+	// for Producer
 	public long appendIndex(int size) throws InterruptedException {
 		long newOffset = lastFile.nextMessageOffset;
 		Index.setOffset(lastFile.lastIndexByte, lastFile.nextMessageOffset);
@@ -113,6 +99,11 @@ public class Topic {
 			lastFile.flush();
 		}
 		return newOffset;
+	}
+
+	// for WriteMessageService
+	public void appendMessageBytes(byte[] bytes, long offset) throws InterruptedException {
+		writeLogFileBuffer.write(bytes, offset);
 	}
 
 	// for Consumer
@@ -145,64 +136,15 @@ public class Topic {
 		return null; // 文件丢失??
 	}
 
-	public int getBlockingMessageNumber() {
-		return messageBlockQueue.size();
-	}
-
 	// for Producer
 	public void flush() throws InterruptedException {
-		close = true;
 		// 1. update lastIndex
+		close = true;
 		lastFile.flush();
 		// 2. flush writeIndexFileBuffer
 		writeIndexFileBuffer.flush();
 		// 3. flush writeLogFileBuffer
 		writeLogFileBuffer.flush();
-	}
-
-}
-
-class RegisterIndexService implements Runnable {
-	private Topic bindTopic;
-
-	public RegisterIndexService(Topic topic) {
-		bindTopic = topic;
-	}
-
-	@Override
-	public void run() {
-		byte[] messageByte = null;
-		while (true) {
-			try {
-				// 1
-				if (messageByte == null) {
-					messageByte = bindTopic.takeMessageFromQueue();
-				}
-				// 2
-				long newOffset = bindTopic.appendIndex(messageByte.length);
-				// 3
-				long lastByteOffset = newOffset + messageByte.length - 1;
-				// 跨 buffer 的, 分为两个放入 Queue
-				if (newOffset / Constants.BUFFER_SIZE != lastByteOffset / Constants.BUFFER_SIZE) {
-					int size1 = (int) (Constants.BUFFER_SIZE - newOffset % Constants.BUFFER_SIZE);
-					byte[] part1 = new byte[size1], part2 = new byte[messageByte.length - size1];
-					System.arraycopy(messageByte, 0, part1, 0, size1);
-					System.arraycopy(messageByte, size1, part2, 0, part2.length);
-					GlobalResource.WriteTaskBlockQueue.put(new WriteTask(part1, bindTopic.bucket, newOffset));
-					GlobalResource.WriteTaskBlockQueue.put(new WriteTask(part2, bindTopic.bucket, newOffset + size1));
-					System.out.println("WriteQueue2入" + GlobalResource.WriteTaskBlockQueue.size()); //// test
-					// System.out.println("1a"); //// test
-				} else {
-					GlobalResource.WriteTaskBlockQueue.put(new WriteTask(messageByte, bindTopic.bucket, newOffset));
-					System.out.println("WriteQueue1入" + GlobalResource.WriteTaskBlockQueue.size()); //// test
-					// System.out.println("2a"); //// test
-				}
-				messageByte = null;
-			} catch (Exception e) {
-				// } catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-		}
 	}
 
 }
