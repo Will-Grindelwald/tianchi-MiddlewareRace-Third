@@ -47,10 +47,12 @@ public class LastFile {
 		}
 	}
 
+	// 仅用于 topic 构造
 	public synchronized long getNextIndexOffset() {
 		return nextIndexOffset;
 	}
 
+	// 仅用于 topic 构造
 	public synchronized long getNextMessageOffset() {
 		return nextMessageOffset;
 	}
@@ -59,11 +61,11 @@ public class LastFile {
 	public synchronized long updateAndAppendIndex(int size, WriteBuffer2 writeIndexFileBuffer)
 			throws InterruptedException {
 		long newOffset = nextMessageOffset;
+		nextIndexOffset += Constants.INDEX_SIZE;
+		nextMessageOffset += size;
 		Index.setOffset(lastIndexByte, newOffset);
 		Index.setSize(lastIndexByte, size);
-		nextIndexOffset += Constants.INDEX_SIZE;
 		writeIndexFileBuffer.write(lastIndexByte);
-		nextMessageOffset += size;
 		if (close) {
 			flush();
 		}

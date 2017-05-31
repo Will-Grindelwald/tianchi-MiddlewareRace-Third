@@ -24,9 +24,9 @@ public class WriteBuffer2 {
 	private boolean bufferNotFull; // 与 reMap 同步
 	private final AtomicInteger bufferWrited;
 
-	private ReentrantLock bufferLock = new ReentrantLock();
-	private Condition bufferEmpty = bufferLock.newCondition();
-	private Condition bufferBlockNumber = bufferLock.newCondition();
+	private final ReentrantLock bufferLock = new ReentrantLock();
+	private final Condition bufferEmpty = bufferLock.newCondition();
+	private final Condition bufferBlockNumber = bufferLock.newCondition();
 
 	// for close
 	private volatile boolean close = false;
@@ -78,7 +78,7 @@ public class WriteBuffer2 {
 				blockNumber.incrementAndGet();
 				GlobalResource.submitReMapTask(this::reMap);
 			} else if (close) {
-				buffer.force();
+				flush();
 			}
 			return true;
 		} finally {
@@ -96,6 +96,8 @@ public class WriteBuffer2 {
 			int targetBlockNumber = (int) (offset / Constants.BUFFER_SIZE);
 			while (targetBlockNumber != blockNumber.get()) {
 				// 若要写入的块非当前块, 则阻塞
+				System.out.println("targetBlockNumber=" + targetBlockNumber); ////test
+				System.out.println("blockNumber=" + blockNumber); ////test
 				bufferBlockNumber.await();
 			}
 			while (!bufferNotFull) {
@@ -106,11 +108,12 @@ public class WriteBuffer2 {
 			buffer.put(bytes);
 			if (bufferWrited.addAndGet(bytes.length) == Constants.BUFFER_SIZE) {
 				bufferNotFull = false;
+				bufferWrited.set(0);
 				blockNumber.incrementAndGet();
 				bufferBlockNumber.signalAll();
 				GlobalResource.submitReMapTask(this::reMap);
 			} else if (close) {
-				buffer.force();
+				flush();
 			}
 			return true;
 		} finally {
@@ -122,7 +125,7 @@ public class WriteBuffer2 {
 	public void reMap() {
 		bufferLock.lock();
 		try {
-			System.out.println("c1");
+			System.out.println("c1"); ////test
 			// 1
 			buffer.force();
 			// 2
@@ -140,7 +143,7 @@ public class WriteBuffer2 {
 			// 与 commit(or write) 同步
 			bufferNotFull = true;
 			bufferEmpty.signalAll();
-			System.out.println("c2");
+			System.out.println("c2"); ////test
 		} catch (IOException e) {
 			e.printStackTrace();
 		} finally {
@@ -149,9 +152,9 @@ public class WriteBuffer2 {
 	}
 
 	public void flush() throws InterruptedException {
+		bufferLock.lock();
 		if (!close)
 			close = true;
-		bufferLock.lock();
 		try {
 			buffer.force();
 		} finally {

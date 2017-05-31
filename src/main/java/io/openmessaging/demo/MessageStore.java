@@ -94,7 +94,7 @@ public class MessageStore {
 	 * message 结构
 	 * ------------------------------------------------------------------------
 	 * |body.length| body |headers.length|headers|properties.length|properties|
-	 * |int        |byte[]|int           |byte[] |int              |byte[]    |
+	 * |____int____|byte[]|_____int______|byte[] |_______int_______|__byte[]__|
 	 * ------------------------------------------------------------------------
 	 */
 	public byte[] messageToBytes(Message message) {
