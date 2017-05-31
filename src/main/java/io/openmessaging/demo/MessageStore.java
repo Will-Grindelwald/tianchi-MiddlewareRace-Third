@@ -28,8 +28,8 @@ public class MessageStore {
 
 	// for Producer
 	public void putMessage(String bucket, Message message) {
-		if (message == null)
-			return;
+//		if (message == null)
+//			return;
 //		byte[] messageByteTmp = messageToBytes(message);
 //		byte[] messageByte = new byte[messageByteTmp.length];
 //		System.arraycopy(messageByteTmp, 0, messageByte, 0, messageByteTmp.length);
@@ -230,6 +230,7 @@ public class MessageStore {
 	public void flush() throws InterruptedException {
 		while (GlobalResource.getSizeOfWriteTaskBlockQueue() != 0) {
 			// 全局的 WriteTaskQueue 非空
+			
 			Thread.sleep(1000);
 		}
 		Iterator<Map.Entry<String, Topic>> iterator = topicCache.entrySet().iterator();

@@ -1,5 +1,7 @@
 package io.openmessaging.demo;
 
+import java.util.concurrent.locks.ReentrantLock;
+
 import io.openmessaging.BatchToPartition;
 import io.openmessaging.BytesMessage;
 import io.openmessaging.KeyValue;
@@ -14,6 +16,7 @@ public class DefaultProducer implements Producer {
 	private final MessageStore messageStore = new MessageStore();
 	private final MessageFactory messageFactory = new DefaultMessageFactory();
 
+	 private ReentrantLock putMessageNormalLock = new ReentrantLock(); 
 	public DefaultProducer(KeyValue properties) {
 		this.properties = properties;
 		if (System.getProperty("path") == null)
@@ -46,7 +49,8 @@ public class DefaultProducer implements Producer {
 	}
 
 	@Override
-	public synchronized void send(Message message) {
+	public  void send(Message message) {
+		putMessageNormalLock.lock();
 		if (message == null)
 			throw new ClientOMSException("Message should not be null");
 		String topic = message.headers().getString(MessageHeader.TOPIC);
@@ -55,6 +59,7 @@ public class DefaultProducer implements Producer {
 			throw new ClientOMSException(String.format("Queue:%s Topic:%s should put one and only one", true, queue));
 		}
 		messageStore.putMessage(topic != null ? topic : queue, message);
+		putMessageNormalLock.unlock();
 	}
 
 	@Override

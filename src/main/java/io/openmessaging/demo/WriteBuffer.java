@@ -80,7 +80,7 @@ public class WriteBuffer {
 	 * 此 write 设计为顺序写 buffer. 且不会出现 bytes[] 要跨 buffer 写入, 这由外部来保证.
 	 */
 	public long write(byte[] bytes) throws InterruptedException {
-		bufferLock.lock();
+//		bufferLock.lock();
 		while (!bufferNotFull) {
 			// 与 reMap 同步, indexBuffer logBuffer 都需要
 			bufferEmpty.await();
@@ -105,7 +105,7 @@ public class WriteBuffer {
 			// only indexBuffer will
 			buffer.force();
 		}
-		bufferLock.unlock();
+//		bufferLock.unlock();
 		return ret;
 	}
 
@@ -117,7 +117,7 @@ public class WriteBuffer {
 		if (bufferL2Size == 0)
 			return false;
 		int targetBlockNumber = (int) (offset / Constants.BUFFER_SIZE);
-		bufferLock.lock();
+//		bufferLock.lock();
 		while (targetBlockNumber != blockNumber.get()) {
 			System.out.println("1targetBlockNumber=" + targetBlockNumber);
 			System.out.println("1blockNumber=" + blockNumber.get());
@@ -126,7 +126,7 @@ public class WriteBuffer {
 			// 若要写入的块非当前块, 则阻塞
 			bufferBlockNumber.await();
 		}
-		bufferLock.unlock();
+//		bufferLock.unlock();
 		offset %= Constants.BUFFER_SIZE;
 		System.arraycopy(bytes, 0, bufferL2, (int) offset, bytes.length);
 		if (bufferL2Count.addAndGet(bytes.length) == bufferL2Size) {
@@ -163,7 +163,7 @@ public class WriteBuffer {
 	}
 
 	public void reMap() {
-		bufferLock.lock();
+//		bufferLock.lock();
 		try {
 			System.out.println("c1");
 			// 1
@@ -185,7 +185,7 @@ public class WriteBuffer {
 		} catch (IOException e) {
 			e.printStackTrace();
 		} finally {
-			bufferLock.unlock();
+//			bufferLock.unlock();
 		}
 	}
 
