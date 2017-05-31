@@ -100,7 +100,7 @@ public class WriteBuffer {
 			} else { // indexBuffer
 				blockNumber.incrementAndGet();
 			}
-			GlobalResource.BufferReMapExecPool.submit(this::reMap);
+			GlobalResource.submitReMapTask(this::reMap);
 		} else if (close) {
 			// only indexBuffer will
 			buffer.force();
@@ -116,8 +116,9 @@ public class WriteBuffer {
 	public boolean write(byte[] bytes, long offset) throws InterruptedException {
 		if (bufferL2Size == 0)
 			return false;
+
+		bufferLock.lock();
 		int targetBlockNumber = (int) (offset / Constants.BUFFER_SIZE);
-//		bufferLock.lock();
 		while (targetBlockNumber != blockNumber.get()) {
 			System.out.println("1targetBlockNumber=" + targetBlockNumber);
 			System.out.println("1blockNumber=" + blockNumber.get());
@@ -176,8 +177,8 @@ public class WriteBuffer {
 				fileList.add(newFile);
 				mappedFileChannel = newFile.getFileChannel();
 			}
-			buffer = mappedFileChannel.map(FileChannel.MapMode.READ_WRITE, blockNumber.get() * Constants.BUFFER_SIZE,
-					Constants.BUFFER_SIZE);
+			buffer = mappedFileChannel.map(FileChannel.MapMode.READ_WRITE,
+					blockNumber.get() % Constants.BLOCK_NUMBER * Constants.BUFFER_SIZE, Constants.BUFFER_SIZE);
 			// 与 commit(or write) 同步
 			bufferNotFull = true;
 			bufferEmpty.signalAll();
