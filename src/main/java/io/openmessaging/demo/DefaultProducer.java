@@ -15,6 +15,7 @@ public class DefaultProducer implements Producer {
 	private final KeyValue properties;
 	private final MessageStore messageStore = new MessageStore();
 	private final MessageFactory messageFactory = new DefaultMessageFactory();
+	private static final ReentrantLock sendLock = new ReentrantLock();
 
 	 private ReentrantLock putMessageNormalLock = new ReentrantLock(); 
 	public DefaultProducer(KeyValue properties) {
@@ -49,8 +50,8 @@ public class DefaultProducer implements Producer {
 	}
 
 	@Override
-	public  void send(Message message) {
-		putMessageNormalLock.lock();
+	public void send(Message message) {
+		sendLock.lock();
 		if (message == null)
 			throw new ClientOMSException("Message should not be null");
 		String topic = message.headers().getString(MessageHeader.TOPIC);
@@ -59,7 +60,7 @@ public class DefaultProducer implements Producer {
 			throw new ClientOMSException(String.format("Queue:%s Topic:%s should put one and only one", true, queue));
 		}
 		messageStore.putMessage(topic != null ? topic : queue, message);
-		putMessageNormalLock.unlock();
+		sendLock.unlock();
 	}
 
 	@Override

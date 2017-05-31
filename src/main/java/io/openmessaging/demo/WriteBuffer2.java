@@ -96,8 +96,9 @@ public class WriteBuffer2 {
 			int targetBlockNumber = (int) (offset / Constants.BUFFER_SIZE);
 			while (targetBlockNumber != blockNumber.get()) {
 				// 若要写入的块非当前块, 则阻塞
-				System.out.println("targetBlockNumber=" + targetBlockNumber); ////test
-				System.out.println("blockNumber=" + blockNumber); ////test
+//				System.out.println("1targetBlockNumber=" + targetBlockNumber); //// test
+//				System.out.println("1blockNumber=" + blockNumber); //// test
+//				System.out.println("1bufferWrited=" + bufferWrited.get()); //// test
 				bufferBlockNumber.await();
 			}
 			while (!bufferNotFull) {
@@ -108,8 +109,12 @@ public class WriteBuffer2 {
 			buffer.put(bytes);
 			if (bufferWrited.addAndGet(bytes.length) == Constants.BUFFER_SIZE) {
 				bufferNotFull = false;
+//				System.out.println("2blockNumber=" + blockNumber); //// test
+//				System.out.println("2bufferWrited=" + bufferWrited.get()); //// test
 				bufferWrited.set(0);
 				blockNumber.incrementAndGet();
+//				System.out.println("3blockNumber=" + blockNumber); //// test
+//				System.out.println("3bufferWrited=" + bufferWrited.get()); //// test
 				bufferBlockNumber.signalAll();
 				GlobalResource.submitReMapTask(this::reMap);
 			} else if (close) {
@@ -125,7 +130,7 @@ public class WriteBuffer2 {
 	public void reMap() {
 		bufferLock.lock();
 		try {
-			System.out.println("c1"); ////test
+//			System.out.println("c1"); //// test
 			// 1
 			buffer.force();
 			// 2
@@ -143,7 +148,7 @@ public class WriteBuffer2 {
 			// 与 commit(or write) 同步
 			bufferNotFull = true;
 			bufferEmpty.signalAll();
-			System.out.println("c2"); ////test
+//			System.out.println("c2"); //// test
 		} catch (IOException e) {
 			e.printStackTrace();
 		} finally {

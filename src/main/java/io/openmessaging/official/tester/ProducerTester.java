@@ -63,12 +63,16 @@ public class ProducerTester {
 			while (true) {
 				try {
 					String queueOrTopic;
-					if (sendNum % 6 == 0) {
+//					if (sendNum % 6 == 0) {
+//						queueOrTopic = "QUEUE_" + random.nextInt(10);
+//					} else {
+//						queueOrTopic = "TOPIC_" + sendNum % 6 + "" + random.nextInt(10);
+//					}
+					if (sendNum % 10 == 0) {
 						queueOrTopic = "QUEUE_" + random.nextInt(10);
 					} else {
-						queueOrTopic = "TOPIC_" + sendNum % 6 + "" + random.nextInt(10);
+						queueOrTopic = "TOPIC_" + random.nextInt(10);
 					}
-					queueOrTopic = "QUEUE_0";
 					byte[] var = (label + "_" + offsets.get(queueOrTopic)).getBytes();
 					System.arraycopy(var, 0, news, news.length - var.length, var.length);
 					Message message = producer.createBytesMessageToQueue(queueOrTopic, news);
