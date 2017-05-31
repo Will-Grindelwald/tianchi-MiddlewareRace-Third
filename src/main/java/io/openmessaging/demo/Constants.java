@@ -7,7 +7,7 @@ public class Constants {
 	public static final int INDEX_SIZE = 12;
 
 	// for buffer
-	public static final int BUFFER_SIZE = INDEX_SIZE * 2 * 1024 * 1024; // buffer 的大小限制 24 M TODO 待测 12 M?
+	public static final int BUFFER_SIZE = INDEX_SIZE * 1024 * 1024; // buffer 的大小限制 12 M
 
 	// for logFile and indexFile
 	public static final int BLOCK_NUMBER = 50;
@@ -21,4 +21,5 @@ public class Constants {
 	public static final int REMAP_THREAD_CONUT = 5; // 用于 Buffer ReMap 的线程池 TODO 待测
 	public static final int WRITE_MESSAGE_THREAD_CONUT = 10; // 用于 Buffer ReMap 的线程池 TODO 待测
 
+	public static final int BLOCKING_QUEUE_SIZE = 10000;
 }

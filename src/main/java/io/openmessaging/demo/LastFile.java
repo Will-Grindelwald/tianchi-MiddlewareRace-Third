@@ -4,14 +4,20 @@ import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 
+/**
+ * 本类方法皆为 synchronized, 是为互斥修改属性, 从 topic 中的调用看应该只会被单线程调用
+ */
 public class LastFile {
 	private final String path;
 	private final String fileName = Constants.LAST_FILE_NAME;
 	private final RandomAccessFile lastFile;
 
-	public long nextIndexOffset;
-	public long nextMessageOffset;
-	public final byte[] lastIndexByte = new byte[Constants.INDEX_SIZE];
+	// 下面三个属性`互斥访问`以保证正确性
+	private long nextIndexOffset;
+	private long nextMessageOffset;
+	private final byte[] lastIndexByte = new byte[Constants.INDEX_SIZE];
+
+	private boolean close = false;
 
 	public LastFile(String path) {
 		this.path = path;
@@ -37,11 +43,36 @@ public class LastFile {
 				}
 			}
 		} catch (IOException e) {
-			throw new ClientOMSException("Last create failure", e);
+			throw new ClientOMSException("LastFile create failure", e);
 		}
 	}
 
+	public synchronized long getNextIndexOffset() {
+		return nextIndexOffset;
+	}
+
+	public synchronized long getNextMessageOffset() {
+		return nextMessageOffset;
+	}
+
+	// 本身只会经由 producer.send() 被单线程调用
+	public synchronized long updateAndAppendIndex(int size, WriteBuffer2 writeIndexFileBuffer)
+			throws InterruptedException {
+		long newOffset = nextMessageOffset;
+		Index.setOffset(lastIndexByte, newOffset);
+		Index.setSize(lastIndexByte, size);
+		nextIndexOffset += Constants.INDEX_SIZE;
+		writeIndexFileBuffer.write(lastIndexByte);
+		nextMessageOffset += size;
+		if (close) {
+			flush();
+		}
+		return newOffset;
+	}
+
 	public synchronized void flush() {
+		if (!close)
+			close = true;
 		try {
 			lastFile.seek(0);
 			lastFile.writeLong(nextIndexOffset);
