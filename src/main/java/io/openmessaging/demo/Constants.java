@@ -11,7 +11,7 @@ public class Constants {
 	public static final int BUFFER_SIZE = INDEX_SIZE * 1024 * 1024;
 
 	// for logFile and indexFile
-	public static final int BLOCK_NUMBER = 1;
+	public static final int BLOCK_NUMBER = 50;
 	// 文件的大小限制 BLOCK_NUMBER 个 Buffer 大小
 	public static final int FILE_SIZE = BUFFER_SIZE * BLOCK_NUMBER;
 	public static final String INDEX_FILE_PREFIX = "Index";

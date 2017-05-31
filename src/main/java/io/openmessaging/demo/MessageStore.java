@@ -42,19 +42,29 @@ public class MessageStore {
 			// 2. 添加 Index
 			long offset = topic.appendIndex(messageByte.length);
 			// 3. 放入阻塞队列
-			long lastByteOffset = offset + messageByte.length - 1;
-			// 跨 buffer 的, 分为两个放入 Queue
-			// TODO 边界检测
-			if (offset / Constants.BUFFER_SIZE != lastByteOffset / Constants.BUFFER_SIZE) {
+			if (offset % Constants.BUFFER_SIZE + messageByte.length <= Constants.BUFFER_SIZE) {
+				GlobalResource.putWriteTask(new WriteTask(messageByte, bucket, offset));
+			} else { // 跨 buffer 的, 分为两个放入 Queue
 				int size1 = (int) (Constants.BUFFER_SIZE - offset % Constants.BUFFER_SIZE);
 				byte[] part1 = new byte[size1], part2 = new byte[messageByte.length - size1];
 				System.arraycopy(messageByte, 0, part1, 0, size1);
 				System.arraycopy(messageByte, size1, part2, 0, part2.length);
 				GlobalResource.putWriteTask(new WriteTask(part1, bucket, offset));
 				GlobalResource.putWriteTask(new WriteTask(part2, bucket, offset + size1));
-			} else {
-				GlobalResource.putWriteTask(new WriteTask(messageByte, bucket, offset));
 			}
+
+			// TODO 边界检测
+//			long lastByteOffset = offset + messageByte.length - 2;
+//			if (offset / Constants.BUFFER_SIZE != lastByteOffset / Constants.BUFFER_SIZE) {
+//				int size1 = (int) (Constants.BUFFER_SIZE - offset % Constants.BUFFER_SIZE);
+//				byte[] part1 = new byte[size1], part2 = new byte[messageByte.length - size1];
+//				System.arraycopy(messageByte, 0, part1, 0, size1);
+//				System.arraycopy(messageByte, size1, part2, 0, part2.length);
+//				GlobalResource.putWriteTask(new WriteTask(part1, bucket, offset));
+//				GlobalResource.putWriteTask(new WriteTask(part2, bucket, offset + size1));
+//			} else {
+//				GlobalResource.putWriteTask(new WriteTask(messageByte, bucket, offset));
+//			}
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
