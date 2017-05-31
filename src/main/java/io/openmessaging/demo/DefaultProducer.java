@@ -17,7 +17,6 @@ public class DefaultProducer implements Producer {
 	private final MessageFactory messageFactory = new DefaultMessageFactory();
 	private static final ReentrantLock sendLock = new ReentrantLock();
 
-	 private ReentrantLock putMessageNormalLock = new ReentrantLock(); 
 	public DefaultProducer(KeyValue properties) {
 		this.properties = properties;
 		if (System.getProperty("path") == null)
@@ -52,15 +51,19 @@ public class DefaultProducer implements Producer {
 	@Override
 	public void send(Message message) {
 		sendLock.lock();
-		if (message == null)
-			throw new ClientOMSException("Message should not be null");
-		String topic = message.headers().getString(MessageHeader.TOPIC);
-		String queue = message.headers().getString(MessageHeader.QUEUE);
-		if ((topic == null && queue == null) || (topic != null && queue != null)) {
-			throw new ClientOMSException(String.format("Queue:%s Topic:%s should put one and only one", true, queue));
+		try {
+			if (message == null)
+				throw new ClientOMSException("Message should not be null");
+			String topic = message.headers().getString(MessageHeader.TOPIC);
+			String queue = message.headers().getString(MessageHeader.QUEUE);
+			if ((topic == null && queue == null) || (topic != null && queue != null)) {
+				throw new ClientOMSException(
+						String.format("Queue:%s Topic:%s should put one and only one", true, queue));
+			}
+			messageStore.putMessage(topic != null ? topic : queue, message);
+		} finally {
+			sendLock.unlock();
 		}
-		messageStore.putMessage(topic != null ? topic : queue, message);
-		sendLock.unlock();
 	}
 
 	@Override

@@ -15,16 +15,13 @@ public class WriteMessageService implements Runnable {
 				// 1
 				if (task == null) {
 					task = GlobalResource.takeWriteTask();
-//					System.out.println("WriteQueue 出队, 剩余 " + GlobalResource.getSizeOfWriteTaskBlockQueue()); //// test
 				}
 				// 2
 				if ((taskTopic = topicCache.get(task.bucket)) == null) {
-//					System.out.println("gsgsg");
 					taskTopic = GlobalResource.getTopicByName(task.bucket);
 					topicCache.put(task.bucket, taskTopic);
 				}
 				// 3
-//				System.out.println("333");
 				taskTopic.appendMessageBytes(task.messageBytes, task.offset);
 				task = null;
 			} catch (InterruptedException e) {

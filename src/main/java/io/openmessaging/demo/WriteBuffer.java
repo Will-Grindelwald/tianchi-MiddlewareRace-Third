@@ -80,7 +80,7 @@ public class WriteBuffer {
 	 * 此 write 设计为顺序写 buffer. 且不会出现 bytes[] 要跨 buffer 写入, 这由外部来保证.
 	 */
 	public long write(byte[] bytes) throws InterruptedException {
-//		bufferLock.lock();
+		bufferLock.lock();
 		while (!bufferNotFull) {
 			// 与 reMap 同步, indexBuffer logBuffer 都需要
 			bufferEmpty.await();
@@ -93,9 +93,9 @@ public class WriteBuffer {
 				bufferL2Count.set(0);
 				// 唤醒那些要写下一块的
 				blockNumber.incrementAndGet();
-//				System.out.println("2blockNumber=" + blockNumber.get());
-//				System.out.println("2bufferL2Count=" + bufferL2Count.get());
-//				System.out.println(Thread.currentThread().getName());
+				System.out.println("2blockNumber=" + blockNumber.get());
+				System.out.println("2bufferL2Count=" + bufferL2Count.get());
+				System.out.println(Thread.currentThread().getName());
 				bufferBlockNumber.signalAll();
 			} else { // indexBuffer
 				blockNumber.incrementAndGet();
@@ -105,7 +105,7 @@ public class WriteBuffer {
 			// only indexBuffer will
 			buffer.force();
 		}
-//		bufferLock.unlock();
+		bufferLock.unlock();
 		return ret;
 	}
 
@@ -116,23 +116,22 @@ public class WriteBuffer {
 	public boolean write(byte[] bytes, long offset) throws InterruptedException {
 		if (bufferL2Size == 0)
 			return false;
-
 		bufferLock.lock();
 		int targetBlockNumber = (int) (offset / Constants.BUFFER_SIZE);
 		while (targetBlockNumber != blockNumber.get()) {
-//			System.out.println("1targetBlockNumber=" + targetBlockNumber);
-//			System.out.println("1blockNumber=" + blockNumber.get());
-//			System.out.println("1bufferL2Count=" + bufferL2Count.get());
-//			System.out.println(Thread.currentThread().getName());
+			System.out.println("1targetBlockNumber=" + targetBlockNumber);
+			System.out.println("1blockNumber=" + blockNumber.get());
+			System.out.println("1bufferL2Count=" + bufferL2Count.get());
+			System.out.println(Thread.currentThread().getName());
 			// 若要写入的块非当前块, 则阻塞
 			bufferBlockNumber.await();
 		}
-//		bufferLock.unlock();
+		bufferLock.unlock();
 		offset %= Constants.BUFFER_SIZE;
 		System.arraycopy(bytes, 0, bufferL2, (int) offset, bytes.length);
 		if (bufferL2Count.addAndGet(bytes.length) == bufferL2Size) {
 			// 写满 bufferL2 提交, 是唯一的, 不会并发
-//			System.out.println("commit" + Thread.currentThread().getName());
+			System.out.println("commit" + Thread.currentThread().getName());
 			write(bufferL2);
 		} else if (close) {
 			// 未写满 bufferL2, 因 close 提交, 会并发！
@@ -164,9 +163,9 @@ public class WriteBuffer {
 	}
 
 	public void reMap() {
-//		bufferLock.lock();
+		bufferLock.lock();
 		try {
-//			System.out.println("c1");
+			System.out.println("c1");
 			// 1
 			buffer.force();
 			// 2
@@ -182,11 +181,11 @@ public class WriteBuffer {
 			// 与 commit(or write) 同步
 			bufferNotFull = true;
 			bufferEmpty.signalAll();
-//			System.out.println("c2");
+			System.out.println("c2");
 		} catch (IOException e) {
 			e.printStackTrace();
 		} finally {
-//			bufferLock.unlock();
+			bufferLock.unlock();
 		}
 	}
 

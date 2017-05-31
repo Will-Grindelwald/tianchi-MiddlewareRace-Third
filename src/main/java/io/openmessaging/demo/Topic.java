@@ -1,7 +1,7 @@
 package io.openmessaging.demo;
 
 import java.io.File;
-import java.nio.channels.FileChannel;
+import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 // 一个 buchet 一个, 全局唯一, 小心并发
@@ -15,12 +15,12 @@ public class Topic {
 
 	// IndexFile
 	private final CopyOnWriteArrayList<PersistenceFile> indexFileList = new CopyOnWriteArrayList<>();
-//	private WriteBuffer writeIndexFileBuffer;
+	// private WriteBuffer writeIndexFileBuffer;
 	private WriteBuffer2 writeIndexFileBuffer;
 
 	// LogFiles
 	private final CopyOnWriteArrayList<PersistenceFile> logFileList = new CopyOnWriteArrayList<>();
-//	private WriteBuffer writeLogFileBuffer;
+	// private WriteBuffer writeLogFileBuffer;
 	private WriteBuffer2 writeLogFileBuffer;
 
 	public Topic(String bucket) {
@@ -50,7 +50,8 @@ public class Topic {
 		if (indexFileList.isEmpty()) {
 			indexFileList.add(new PersistenceFile(path, 0, Constants.INDEX_FILE_PREFIX));
 		}
-		writeIndexFileBuffer = new WriteBuffer2(Constants.INDEX_FILE_PREFIX, indexFileList, lastFile.getNextIndexOffset(), 0);
+		writeIndexFileBuffer = new WriteBuffer2(Constants.INDEX_FILE_PREFIX, indexFileList,
+				lastFile.getNextIndexOffset(), 0);
 		// LogFiles
 		for (String indexFile : file.list((dir, name) -> name.startsWith(Constants.LOG_FILE_PREFIX))) {
 			try {
@@ -79,35 +80,18 @@ public class Topic {
 	}
 
 	// for Consumer
-	public FileChannel getIndexFileChannelByOffset(long offset) {
-		int fileID = (int) (offset % Constants.FILE_SIZE);
-		for (PersistenceFile indexFile : indexFileList) {
-			if (indexFile.fileID == fileID)
-				return indexFile.getFileChannel();
-		}
-		// twins for ...
-		for (PersistenceFile indexFile : indexFileList) {
-			if (indexFile.fileID == fileID)
-				return indexFile.getFileChannel();
-		}
-		return null; // 文件丢失??
+	public List<PersistenceFile> getIndexFileList() {
+		return indexFileList;
 	}
 
 	// for Consumer
-	public FileChannel getLogFileChannelByOffset(long offset) {
-		int fileID = (int) (offset % Constants.FILE_SIZE);
-		for (PersistenceFile indexFile : indexFileList) {
-			if (indexFile.fileID == fileID)
-				return indexFile.getFileChannel();
-		}
-		// twins for ...
-		for (PersistenceFile indexFile : indexFileList) {
-			if (indexFile.fileID == fileID)
-				return indexFile.getFileChannel();
-		}
-		return null; // 文件丢失??
+	public List<PersistenceFile> getLogFileList() {
+		return logFileList;
 	}
 
+	public long getNextIndexOffset() {
+		return lastFile.getNextIndexOffset();
+	}
 	// for Producer
 	public void flush() throws InterruptedException {
 		// 1. update lastIndex

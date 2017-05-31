@@ -47,18 +47,18 @@ public class LastFile {
 		}
 	}
 
-	// 仅用于 topic 构造synchronized 
-	public long getNextIndexOffset() {
+	// 仅用于 topic 构造
+	public synchronized long getNextIndexOffset() {
 		return nextIndexOffset;
 	}
 
-	// 仅用于 topic 构造 synchronized
-	public long getNextMessageOffset() {
+	// 仅用于 topic 构造
+	public synchronized long getNextMessageOffset() {
 		return nextMessageOffset;
 	}
 
-	// 本身只会经由 producer.send() 被单线程调用synchronized 
-	public long updateAndAppendIndex(int size, WriteBuffer2 writeIndexFileBuffer)
+	// 本身只会经由 producer.send() 被单线程调用
+	public synchronized long updateAndAppendIndex(int size, WriteBuffer2 writeIndexFileBuffer)
 			throws InterruptedException {
 		long newOffset = nextMessageOffset;
 		nextIndexOffset += Constants.INDEX_SIZE;
@@ -71,8 +71,8 @@ public class LastFile {
 		}
 		return newOffset;
 	}
-//synchronized
-	public  void flush() {
+
+	public synchronized void flush() {
 		if (!close)
 			close = true;
 		try {

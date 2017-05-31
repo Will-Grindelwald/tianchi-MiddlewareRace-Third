@@ -28,6 +28,8 @@ public class WriteBuffer2 {
 	private final Condition bufferEmpty = bufferLock.newCondition();
 	private final Condition bufferBlockNumber = bufferLock.newCondition();
 
+	// for init
+	private volatile boolean open = false;
 	// for close
 	private volatile boolean close = false;
 
@@ -37,6 +39,10 @@ public class WriteBuffer2 {
 		this.fileList = fileList;
 		fileID = (int) (offset / Constants.FILE_SIZE);
 		blockNumber = new AtomicInteger((int) (offset / Constants.BUFFER_SIZE));
+		bufferWrited = new AtomicInteger((int) offset);
+	}
+
+	public void init() {
 		// get FileChannel
 		for (PersistenceFile file : fileList) {
 			if (file.fileID == fileID) {
@@ -53,12 +59,12 @@ public class WriteBuffer2 {
 		try {
 			buffer = mappedFileChannel.map(FileChannel.MapMode.READ_WRITE,
 					blockNumber.get() % Constants.BLOCK_NUMBER * Constants.BUFFER_SIZE, Constants.BUFFER_SIZE);
-			buffer.position((int) (offset % Constants.BUFFER_SIZE));
+			buffer.position((int) (bufferWrited.get() % Constants.BUFFER_SIZE));
 			bufferNotFull = true;
+			open = true;
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		bufferWrited = new AtomicInteger(buffer.position()); // indexBuffer 用不到
 	}
 
 	/**
@@ -67,6 +73,8 @@ public class WriteBuffer2 {
 	 */
 	public boolean write(byte[] bytes) throws InterruptedException {
 		bufferLock.lock();
+		if (!open)
+			init();
 		try {
 			while (!bufferNotFull) {
 				// 与 reMap 同步, indexBuffer logBuffer 都需要
@@ -92,13 +100,12 @@ public class WriteBuffer2 {
 	 */
 	public boolean write(byte[] bytes, long offset) throws InterruptedException {
 		bufferLock.lock();
+		if (!open)
+			init();
 		try {
 			int targetBlockNumber = (int) (offset / Constants.BUFFER_SIZE);
 			while (targetBlockNumber != blockNumber.get()) {
 				// 若要写入的块非当前块, 则阻塞
-//				System.out.println("1targetBlockNumber=" + targetBlockNumber); //// test
-//				System.out.println("1blockNumber=" + blockNumber); //// test
-//				System.out.println("1bufferWrited=" + bufferWrited.get()); //// test
 				bufferBlockNumber.await();
 			}
 			while (!bufferNotFull) {
@@ -109,12 +116,8 @@ public class WriteBuffer2 {
 			buffer.put(bytes);
 			if (bufferWrited.addAndGet(bytes.length) == Constants.BUFFER_SIZE) {
 				bufferNotFull = false;
-//				System.out.println("2blockNumber=" + blockNumber); //// test
-//				System.out.println("2bufferWrited=" + bufferWrited.get()); //// test
 				bufferWrited.set(0);
 				blockNumber.incrementAndGet();
-//				System.out.println("3blockNumber=" + blockNumber); //// test
-//				System.out.println("3bufferWrited=" + bufferWrited.get()); //// test
 				bufferBlockNumber.signalAll();
 				GlobalResource.submitReMapTask(this::reMap);
 			} else if (close) {
@@ -130,7 +133,6 @@ public class WriteBuffer2 {
 	public void reMap() {
 		bufferLock.lock();
 		try {
-//			System.out.println("c1"); //// test
 			// 1
 			buffer.force();
 			// 2
@@ -140,7 +142,7 @@ public class WriteBuffer2 {
 				PersistenceFile newFile = new PersistenceFile(fileList.get(0).path, ++fileID, fileNamePrefix);
 				fileList.add(newFile);
 				mappedFileChannel.force(false);
-				mappedFileChannel.close();
+				// mappedFileChannel.close(); // 要不要关？
 				mappedFileChannel = newFile.getFileChannel();
 			}
 			buffer = mappedFileChannel.map(FileChannel.MapMode.READ_WRITE,
@@ -148,7 +150,6 @@ public class WriteBuffer2 {
 			// 与 commit(or write) 同步
 			bufferNotFull = true;
 			bufferEmpty.signalAll();
-//			System.out.println("c2"); //// test
 		} catch (IOException e) {
 			e.printStackTrace();
 		} finally {

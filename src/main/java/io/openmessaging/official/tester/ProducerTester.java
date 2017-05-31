@@ -12,7 +12,6 @@ import org.slf4j.LoggerFactory;
 import io.openmessaging.KeyValue;
 import io.openmessaging.Message;
 import io.openmessaging.Producer;
-import io.openmessaging.demo.GlobalResource;
 
 public class ProducerTester {
 
@@ -68,10 +67,10 @@ public class ProducerTester {
 //					} else {
 //						queueOrTopic = "TOPIC_" + sendNum % 6 + "" + random.nextInt(10);
 //					}
-					if (sendNum % 10 == 0) {
-						queueOrTopic = "QUEUE_" + random.nextInt(10);
+					if (sendNum % 2 == 0) {
+						queueOrTopic = "QUEUE_0";
 					} else {
-						queueOrTopic = "TOPIC_" + random.nextInt(10);
+						queueOrTopic = "TOPIC_0";
 					}
 					byte[] var = (label + "_" + offsets.get(queueOrTopic)).getBytes();
 					System.arraycopy(var, 0, news, news.length - var.length, var.length);
@@ -79,7 +78,7 @@ public class ProducerTester {
 					logger.debug("queueOrTopic:{} offset:{}", queueOrTopic, label + "_" + offsets.get(queueOrTopic));
 					offsets.put(queueOrTopic, offsets.get(queueOrTopic) + 1);
 					producer.send(message);
-					System.out.println(++sendNum); //// test
+					++sendNum;
 					if (sendNum >= Constants.PRO_MAX) {
 						break;
 					}
@@ -88,8 +87,6 @@ public class ProducerTester {
 					break;
 				}
 			}
-			System.out.println("topicCount=" + GlobalResource.count.get()); //// test
-			System.out.println(label + "  等待flush"); //// test
 			producer.flush();
 		}
 
