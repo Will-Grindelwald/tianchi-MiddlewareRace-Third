@@ -21,9 +21,9 @@ public class Constants {
 
 	// for Mutli-Thread
 	// 用于 Buffer ReMap 的线程池 TODO 待测
-	public static final int REMAP_THREAD_CONUT = 5;
+	public static final int REMAP_THREAD_CONUT = 20;
 	// 用于 Buffer ReMap 的线程池 TODO 待测
-	public static final int WRITE_MESSAGE_THREAD_CONUT = 10;
+	public static final int WRITE_MESSAGE_THREAD_CONUT =80;
 
 
 	// for BlockingQueue

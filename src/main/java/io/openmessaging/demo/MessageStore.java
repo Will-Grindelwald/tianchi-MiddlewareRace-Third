@@ -251,7 +251,7 @@ public class MessageStore {
 
 	// for Producer
 	public void flush() throws InterruptedException {
-		while (GlobalResource.getSizeOfWriteTaskBlockQueue() != 0) {
+		while (!GlobalResource.getSizeOfWriteTaskBlockQueue()) {
 			// 全局的 WriteTaskQueue 非空
 			
 			Thread.sleep(1000);

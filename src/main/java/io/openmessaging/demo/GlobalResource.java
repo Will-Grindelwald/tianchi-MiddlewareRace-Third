@@ -47,8 +47,8 @@ public class GlobalResource {
 		return WriteTaskBlockQueue.take();
 	}
 
-	public static int getSizeOfWriteTaskBlockQueue() throws InterruptedException {
-		return WriteTaskBlockQueue.size();
+	public static boolean getSizeOfWriteTaskBlockQueue() throws InterruptedException {
+		return WriteTaskBlockQueue.isEmpty();
 	}
 
 	public static Future<?> submitReMapTask(Runnable task) {
