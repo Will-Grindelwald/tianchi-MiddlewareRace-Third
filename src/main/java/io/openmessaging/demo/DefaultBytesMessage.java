@@ -40,6 +40,8 @@ public class DefaultBytesMessage implements BytesMessage, Serializable {
 
 	@Override
 	public KeyValue properties() {
+		if (properties == null)
+			properties = new DefaultKeyValue();
 		return properties;
 	}
 
