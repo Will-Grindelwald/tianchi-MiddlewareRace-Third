@@ -47,25 +47,26 @@ public class LastFile {
 		}
 	}
 
-	// 仅用于 topic 构造
-	public synchronized long getNextIndexOffset() {
+	// 仅用于 topic 构造 及 ReadBuffer 判断最后一条 Index
+	public long getNextIndexOffset() {
 		return nextIndexOffset;
 	}
 
 	// 仅用于 topic 构造
-	public synchronized long getNextMessageOffset() {
+	public long getNextMessageOffset() {
 		return nextMessageOffset;
 	}
 
-	// 本身只会经由 producer.send() 被单线程调用
-	public synchronized long updateAndAppendIndex(int size, WriteBuffer2 writeIndexFileBuffer)
+	// for Producer, 由 send -> putMessage -> appendIndex 单线程调用
+	public synchronized long updateAndAppendIndex(int size, WriteBuffer3 writeIndexFileBuffer)
 			throws InterruptedException {
 		long newOffset = nextMessageOffset;
-		nextIndexOffset += Constants.INDEX_SIZE;
-		nextMessageOffset += size;
 		Index.setOffset(lastIndexByte, newOffset);
 		Index.setSize(lastIndexByte, size);
-		writeIndexFileBuffer.write(lastIndexByte);
+		GlobalResource.putWriteTask(new WriteTask(lastIndexByte.clone(), writeIndexFileBuffer, nextIndexOffset));
+		// writeIndexFileBuffer.write(lastIndexByte);
+		nextIndexOffset += Constants.INDEX_SIZE;
+		nextMessageOffset += size;
 		if (close) {
 			flush();
 		}
@@ -81,6 +82,8 @@ public class LastFile {
 			lastFile.writeLong(nextMessageOffset);
 			lastFile.writeLong(Index.getOffset(lastIndexByte));
 			lastFile.writeInt(Index.getSize(lastIndexByte));
+			System.out.println("nextIndexOffset=" + nextIndexOffset); //// test
+			System.out.println("nextMessageOffset=" + nextMessageOffset); //// test
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

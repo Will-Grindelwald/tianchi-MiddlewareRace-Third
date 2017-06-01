@@ -15,13 +15,11 @@ public class Topic {
 
 	// IndexFile
 	private final CopyOnWriteArrayList<PersistenceFile> indexFileList = new CopyOnWriteArrayList<>();
-	// private WriteBuffer writeIndexFileBuffer;
-	private WriteBuffer2 writeIndexFileBuffer;
+	private final WriteBuffer3 writeIndexFileBuffer;
 
 	// LogFiles
 	private final CopyOnWriteArrayList<PersistenceFile> logFileList = new CopyOnWriteArrayList<>();
-	// private WriteBuffer writeLogFileBuffer;
-	private WriteBuffer2 writeLogFileBuffer;
+	private final WriteBuffer3 writeLogFileBuffer;
 
 	public Topic(String bucket) {
 		this.bucket = bucket;
@@ -36,7 +34,7 @@ public class Topic {
 		}
 		// Last file
 		lastFile = new LastFile(path);
-		// indexFile
+		// indexFile 及其 WriteBuffer
 		int tmpFileID;
 		for (String indexFile : file.list((dir, name) -> name.startsWith(Constants.INDEX_FILE_PREFIX))) {
 			try {
@@ -50,9 +48,9 @@ public class Topic {
 		if (indexFileList.isEmpty()) {
 			indexFileList.add(new PersistenceFile(path, 0, Constants.INDEX_FILE_PREFIX));
 		}
-		writeIndexFileBuffer = new WriteBuffer2(Constants.INDEX_FILE_PREFIX, indexFileList,
-				lastFile.getNextIndexOffset(), 0);
-		// LogFiles
+		writeIndexFileBuffer = new WriteBuffer3(Constants.INDEX_FILE_PREFIX, indexFileList,
+				lastFile.getNextIndexOffset());
+		// LogFiles 及其 WriteBuffer
 		for (String indexFile : file.list((dir, name) -> name.startsWith(Constants.LOG_FILE_PREFIX))) {
 			try {
 				tmpFileID = Integer.valueOf(indexFile.substring(Constants.LOG_FILE_PREFIX.length()));
@@ -65,18 +63,20 @@ public class Topic {
 		if (logFileList.isEmpty()) {
 			logFileList.add(new PersistenceFile(path, 0, Constants.LOG_FILE_PREFIX));
 		}
-		writeLogFileBuffer = new WriteBuffer2(Constants.LOG_FILE_PREFIX, logFileList, lastFile.getNextMessageOffset(),
-				Constants.BUFFER_SIZE);
+		writeLogFileBuffer = new WriteBuffer3(Constants.LOG_FILE_PREFIX, logFileList, lastFile.getNextMessageOffset());
 	}
 
-	// for Producer
+	// for Producer, 由 send -> putMessage 单线程调用
 	public long appendIndex(int size) throws InterruptedException {
 		return lastFile.updateAndAppendIndex(size, writeIndexFileBuffer);
 	}
 
-	// for WriteMessageService
-	public void appendMessageBytes(byte[] bytes, long offset) throws InterruptedException {
-		writeLogFileBuffer.write(bytes, offset);
+	public WriteBuffer3 getWriteIndexFileBuffer() {
+		return writeIndexFileBuffer;
+	}
+
+	public WriteBuffer3 getWriteLogFileBuffer() {
+		return writeLogFileBuffer;
 	}
 
 	// for Consumer
@@ -92,6 +92,7 @@ public class Topic {
 	public long getNextIndexOffset() {
 		return lastFile.getNextIndexOffset();
 	}
+
 	// for Producer
 	public void flush() throws InterruptedException {
 		// 1. update lastIndex

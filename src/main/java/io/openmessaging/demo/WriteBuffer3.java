@@ -11,7 +11,7 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * READ WRITE MappedByteBuffer Wrapper for Producer. 写缓存系统.
  */
-public class WriteBuffer2 {
+public class WriteBuffer3 {
 
 	private final String fileNamePrefix;
 
@@ -34,7 +34,7 @@ public class WriteBuffer2 {
 	private volatile boolean close = false;
 
 	// 不带二级缓存, 第四个参数没用
-	public WriteBuffer2(String fileNamePrefix, List<PersistenceFile> fileList, long offset) {
+	public WriteBuffer3(String fileNamePrefix, List<PersistenceFile> fileList, long offset) {
 		this.fileNamePrefix = fileNamePrefix;
 		this.fileList = fileList;
 		fileID = (int) (offset / Constants.FILE_SIZE);
@@ -64,33 +64,6 @@ public class WriteBuffer2 {
 			open = true;
 		} catch (IOException e) {
 			e.printStackTrace();
-		}
-	}
-
-	/**
-	 * for indexBuffer. 此 write 设计为`顺序写` buffer. 且不会出现 bytes[] 要跨 buffer 写入,
-	 * 这由外部来保证.
-	 */
-	public boolean write(byte[] bytes) throws InterruptedException {
-		bufferLock.lock();
-		if (!open)
-			init();
-		try {
-			while (!bufferNotFull) {
-				// 与 reMap 同步, indexBuffer logBuffer 都需要
-				bufferEmpty.await();
-			}
-			buffer.put(bytes);
-			if (buffer.remaining() == 0) {
-				bufferNotFull = false;
-				blockNumber.incrementAndGet();
-				GlobalResource.submitReMapTask(this::reMap);
-			} else if (close) {
-				buffer.force();
-			}
-			return true;
-		} finally {
-			bufferLock.unlock();
 		}
 	}
 
