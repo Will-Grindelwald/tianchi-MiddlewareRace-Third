@@ -1,7 +1,5 @@
 package io.openmessaging.demo;
 
-import java.util.concurrent.locks.ReentrantLock;
-
 import io.openmessaging.BatchToPartition;
 import io.openmessaging.BytesMessage;
 import io.openmessaging.KeyValue;
@@ -15,7 +13,6 @@ public class DefaultProducer implements Producer {
 	private final KeyValue properties;
 	private final MessageStore messageStore = new MessageStore();
 	private final MessageFactory messageFactory = new DefaultMessageFactory();
-	private static final ReentrantLock sendLock = new ReentrantLock();
 
 	public DefaultProducer(KeyValue properties) {
 		this.properties = properties;
@@ -50,20 +47,14 @@ public class DefaultProducer implements Producer {
 
 	@Override
 	public void send(Message message) {
-		sendLock.lock();
-		try {
-			if (message == null)
-				throw new ClientOMSException("Message should not be null");
-			String topic = message.headers().getString(MessageHeader.TOPIC);
-			String queue = message.headers().getString(MessageHeader.QUEUE);
-			if ((topic == null && queue == null) || (topic != null && queue != null)) {
-				throw new ClientOMSException(
-						String.format("Queue:%s Topic:%s should put one and only one", true, queue));
-			}
-			messageStore.putMessage(topic != null ? topic : queue, message);
-		} finally {
-			sendLock.unlock();
+		if (message == null)
+			throw new ClientOMSException("Message should not be null");
+		String topic = message.headers().getString(MessageHeader.TOPIC);
+		String queue = message.headers().getString(MessageHeader.QUEUE);
+		if ((topic == null && queue == null) || (topic != null && queue != null)) {
+			throw new ClientOMSException(String.format("Queue:%s Topic:%s should put one and only one", true, queue));
 		}
+		messageStore.putMessage(topic != null ? topic : queue, message);
 	}
 
 	@Override

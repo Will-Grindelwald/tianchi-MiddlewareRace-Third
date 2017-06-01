@@ -1,10 +1,14 @@
 package io.openmessaging.demo;
 
+import java.io.Serializable;
+
 import io.openmessaging.BytesMessage;
 import io.openmessaging.KeyValue;
 import io.openmessaging.Message;
 
-public class DefaultBytesMessage implements BytesMessage {
+public class DefaultBytesMessage implements BytesMessage, Serializable {
+
+	private static final long serialVersionUID = 1955733544808061966L;
 
 	private KeyValue headers = new DefaultKeyValue();
 	private KeyValue properties;
@@ -30,11 +34,17 @@ public class DefaultBytesMessage implements BytesMessage {
 		return headers;
 	}
 
+	public void setHeaders(KeyValue headers) {
+		this.headers = headers;
+	}
+
 	@Override
 	public KeyValue properties() {
-		if (properties == null)
-			properties = new DefaultKeyValue();
 		return properties;
+	}
+
+	public void setProperties(KeyValue properties) {
+		this.properties = properties;
 	}
 
 	@Override

@@ -35,7 +35,7 @@ public class GlobalResource {
 	}
 
 	public static void putWriteTask(WriteTask writeTask) throws InterruptedException {
-//		WriteTaskBlockQueue.put(writeTask);
+		WriteTaskBlockQueue.put(writeTask);
 	}
 
 	public static WriteTask takeWriteTask() throws InterruptedException {

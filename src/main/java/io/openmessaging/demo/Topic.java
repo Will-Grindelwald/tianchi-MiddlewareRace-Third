@@ -39,7 +39,6 @@ public class Topic {
 		for (String indexFile : file.list((dir, name) -> name.startsWith(Constants.INDEX_FILE_PREFIX))) {
 			try {
 				tmpFileID = Integer.valueOf(indexFile.substring(Constants.INDEX_FILE_PREFIX.length()));
-				System.out.println(bucket + "index:" + tmpFileID);
 			} catch (NumberFormatException e) {
 				System.err.println("indexFile name 错误");
 				continue;
@@ -50,12 +49,11 @@ public class Topic {
 			indexFileList.add(new PersistenceFile(path, 0, Constants.INDEX_FILE_PREFIX));
 		}
 		writeIndexFileBuffer = new WriteBuffer3(Constants.INDEX_FILE_PREFIX, indexFileList,
-				lastFile.getNextIndexOffset());
+				lastFile.getNextIndexOffset(), Constants.INDEX_TYPE);
 		// LogFiles 及其 WriteBuffer
 		for (String indexFile : file.list((dir, name) -> name.startsWith(Constants.LOG_FILE_PREFIX))) {
 			try {
 				tmpFileID = Integer.valueOf(indexFile.substring(Constants.LOG_FILE_PREFIX.length()));
-				System.out.println(bucket + "log:" + tmpFileID);
 			} catch (NumberFormatException e) {
 				System.err.println("logFile name 错误");
 				continue;
@@ -65,18 +63,15 @@ public class Topic {
 		if (logFileList.isEmpty()) {
 			logFileList.add(new PersistenceFile(path, 0, Constants.LOG_FILE_PREFIX));
 		}
-		writeLogFileBuffer = new WriteBuffer3(Constants.LOG_FILE_PREFIX, logFileList, lastFile.getNextMessageOffset());
+		writeLogFileBuffer = new WriteBuffer3(Constants.LOG_FILE_PREFIX, logFileList, lastFile.getNextMessageOffset(), Constants.LOG_TYPE);
 	}
 
-	// for Producer, 由 send -> putMessage 单线程调用
+	// for Producer
 	public long appendIndex(int size) throws InterruptedException {
 		return lastFile.updateAndAppendIndex(size, writeIndexFileBuffer);
 	}
 
-	public WriteBuffer3 getWriteIndexFileBuffer() {
-		return writeIndexFileBuffer;
-	}
-
+	// for Producer
 	public WriteBuffer3 getWriteLogFileBuffer() {
 		return writeLogFileBuffer;
 	}
