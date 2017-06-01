@@ -15,7 +15,7 @@ public class WriteMessageService implements Runnable {
 				if (task.messageBytes != null) {
 					task.WriteBuffer.write(task.messageBytes, task.offset);
 				} else {
-					task.WriteBuffer.write(task.intValue, task.offset);
+//					task.WriteBuffer.write(task.intValue, task.offset);
 				}
 				task = null;
 			} catch (InterruptedException e) {

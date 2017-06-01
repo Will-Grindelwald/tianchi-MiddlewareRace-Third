@@ -3,7 +3,6 @@ package io.openmessaging.demo;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 
 // 全局资源, 应最大限度保证并发
@@ -15,8 +14,8 @@ public class GlobalResource {
 			Constants.BLOCKING_QUEUE_SIZE);
 
 	// 用于 Buffer ReMap 的线程池
-	private static final ExecutorService BufferReMapExecPool = Executors
-			.newFixedThreadPool(Constants.REMAP_THREAD_CONUT);
+//	private static final ExecutorService BufferReMapExecPool = Executors
+//			.newFixedThreadPool(Constants.REMAP_THREAD_CONUT);
 
 	// 用于 WriteMessageToLogFile 的线程池
 	private static final ExecutorService WriteMessageExecPool = Executors
@@ -46,8 +45,8 @@ public class GlobalResource {
 		return WriteTaskBlockQueue.size();
 	}
 
-	public static Future<?> submitReMapTask(Runnable task) {
-		return BufferReMapExecPool.submit(task);
-	}
+//	public static Future<?> submitReMapTask(Runnable task) {
+//		return BufferReMapExecPool.submit(task);
+//	}
 
 }

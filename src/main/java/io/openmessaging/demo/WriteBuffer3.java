@@ -24,7 +24,7 @@ public class WriteBuffer3 {
 	private final int fileSize;
 
 	private MappedByteBuffer buffer;
-	private boolean bufferNotFull; // 与 reMap 同步
+//	private boolean bufferNotFull; // 与 reMap 同步
 	private final AtomicInteger blockNumber; // 当前映射块在整个 topic 中的 块号
 	private final AtomicInteger bufferWrited;
 
@@ -32,7 +32,7 @@ public class WriteBuffer3 {
 	private volatile boolean close = false; // for close
 
 	private final ReentrantLock bufferLock = new ReentrantLock();
-	private final Condition bufferEmpty = bufferLock.newCondition();
+//	private final Condition bufferEmpty = bufferLock.newCondition();
 	private final Condition bufferBlockNumber = bufferLock.newCondition();
 
 	// type 0 for index, 1 for log
@@ -71,7 +71,7 @@ public class WriteBuffer3 {
 			buffer = mappedFileChannel.map(FileChannel.MapMode.READ_WRITE,
 					blockNumber.get() % fileBlockNumber * bufferSize, bufferSize);
 			buffer.position((int) (bufferWrited.get() % bufferSize));
-			bufferNotFull = true;
+//			bufferNotFull = true;
 			open = true;
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -91,18 +91,19 @@ public class WriteBuffer3 {
 				// 若要写入的块非当前块, 则阻塞
 				bufferBlockNumber.await();
 			}
-			while (!bufferNotFull) {
-				// 与 reMap 同步, indexBuffer logBuffer 都需要
-				bufferEmpty.await();
-			}
+//			while (!bufferNotFull) {
+//				// 与 reMap 同步, indexBuffer logBuffer 都需要
+//				bufferEmpty.await();
+//			}
 			buffer.position((int) (offset % bufferSize));
 			buffer.put(bytes);
 			if (bufferWrited.addAndGet(bytes.length) == bufferSize) {
-				bufferNotFull = false;
+//				bufferNotFull = false;
 				bufferWrited.set(0);
 				blockNumber.incrementAndGet();
 				bufferBlockNumber.signalAll();
-				GlobalResource.submitReMapTask(this::reMap);
+//				GlobalResource.submitReMapTask(this::reMap);
+				reMap();
 			} else if (close) {
 				buffer.force();
 			}
@@ -122,18 +123,19 @@ public class WriteBuffer3 {
 				// 若要写入的块非当前块, 则阻塞
 				bufferBlockNumber.await();
 			}
-			while (!bufferNotFull) {
-				// 与 reMap 同步, indexBuffer logBuffer 都需要
-				bufferEmpty.await();
-			}
+//			while (!bufferNotFull) {
+//				// 与 reMap 同步, indexBuffer logBuffer 都需要
+//				bufferEmpty.await();
+//			}
 			buffer.position((int) (offset % bufferSize));
 			buffer.putInt(bytes);
 			if (bufferWrited.addAndGet(4) == bufferSize) {
-				bufferNotFull = false;
+//				bufferNotFull = false;
 				bufferWrited.set(0);
 				blockNumber.incrementAndGet();
 				bufferBlockNumber.signalAll();
-				GlobalResource.submitReMapTask(this::reMap);
+//				GlobalResource.submitReMapTask(this::reMap);
+				reMap();
 			} else if (close) {
 				buffer.force();
 			}
@@ -145,7 +147,7 @@ public class WriteBuffer3 {
 
 	// 将交由 GlobalResource.BufferReMapExecPool 执行
 	public void reMap() {
-		bufferLock.lock();
+//		bufferLock.lock();
 		try {
 			// 1
 			// buffer.force();
@@ -162,12 +164,12 @@ public class WriteBuffer3 {
 			buffer = mappedFileChannel.map(FileChannel.MapMode.READ_WRITE,
 					blockNumber.get() % fileBlockNumber * bufferSize, bufferSize);
 			// 与 commit(or write) 同步
-			bufferNotFull = true;
-			bufferEmpty.signalAll();
+//			bufferNotFull = true;
+//			bufferEmpty.signalAll();
 		} catch (IOException e) {
 			e.printStackTrace();
-		} finally {
-			bufferLock.unlock();
+//		} finally {
+//			bufferLock.unlock();
 		}
 	}
 
