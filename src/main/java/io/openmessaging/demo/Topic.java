@@ -39,6 +39,7 @@ public class Topic {
 		for (String indexFile : file.list((dir, name) -> name.startsWith(Constants.INDEX_FILE_PREFIX))) {
 			try {
 				tmpFileID = Integer.valueOf(indexFile.substring(Constants.INDEX_FILE_PREFIX.length()));
+				System.out.println(bucket + "index:" + tmpFileID);
 			} catch (NumberFormatException e) {
 				System.err.println("indexFile name 错误");
 				continue;
@@ -54,6 +55,7 @@ public class Topic {
 		for (String indexFile : file.list((dir, name) -> name.startsWith(Constants.LOG_FILE_PREFIX))) {
 			try {
 				tmpFileID = Integer.valueOf(indexFile.substring(Constants.LOG_FILE_PREFIX.length()));
+				System.out.println(bucket + "log:" + tmpFileID);
 			} catch (NumberFormatException e) {
 				System.err.println("logFile name 错误");
 				continue;
@@ -98,9 +100,9 @@ public class Topic {
 		// 1. update lastIndex
 		lastFile.flush();
 		// 2. flush writeIndexFileBuffer
-		writeIndexFileBuffer.flush();
+//		writeIndexFileBuffer.flush();
 		// 3. flush writeLogFileBuffer
-		writeLogFileBuffer.flush();
+//		writeLogFileBuffer.flush();
 	}
 
 }
