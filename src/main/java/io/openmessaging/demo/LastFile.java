@@ -69,7 +69,7 @@ public class LastFile {
 		return newOffset;
 	}
 
-	// 仅在写文件时加个锁即可
+	// 与 updateAndAppendIndex 互斥
 	public synchronized void flush() {
 		if (!close)
 			close = true;
@@ -79,6 +79,8 @@ public class LastFile {
 			lastFile.writeLong(nextMessageOffset);
 			lastFile.writeLong(Index.getOffset(lastIndexByte));
 			lastFile.writeInt(Index.getSize(lastIndexByte));
+			System.out.println("nextIndexOffset=" + nextIndexOffset); // test
+			System.out.println("nextMessageOffset=" + nextMessageOffset); // test
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
