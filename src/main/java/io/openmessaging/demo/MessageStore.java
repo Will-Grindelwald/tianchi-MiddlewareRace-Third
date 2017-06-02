@@ -10,7 +10,14 @@ import io.openmessaging.Message;
 public class MessageStore {
 
 	private HashMap<String, Topic> topicCache = new HashMap<>();
+
 	// test
+	private static int ID = 0;
+	private int priID;
+	{
+		priID = ID++;
+	}
+	private long count0 = 0;
 	private long count1 = 0;
 	private long count2 = 0;
 	private long count3 = 0;
@@ -96,6 +103,12 @@ public class MessageStore {
 			count1 += start2 - start1;
 			count2 += start3 - start2;
 			count3 += start4 - start3;
+			count0++;
+			if (count0 % 100000 == 0) {
+				System.out.println(priID + ":count1=" + (double) count1 / 1000000000);
+				System.out.println(priID + ":count2=" + (double) count2 / 1000000000);
+				System.out.println(priID + ":count3=" + (double) count3 / 1000000000);
+			}
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
@@ -309,11 +322,11 @@ public class MessageStore {
 
 	// for Producer
 	public void flush() {
-		System.out.println("count1=" + count1);
-		System.out.println("count2=" + count2);
-		System.out.println("count3=" + count3);
+		System.out.println(priID + ":count1=" + (double) count1 / 1000000000);
+		System.out.println(priID + ":count2=" + (double) count2 / 1000000000);
+		System.out.println(priID + ":count3=" + (double) count3 / 1000000000);
 		long start = System.nanoTime();
 		GlobalResource.flush();
-		System.out.println("count4=" + (System.nanoTime() - start));
+		System.out.println(priID + ":count4=" + (double) (System.nanoTime() - start) / 1000000000);
 	}
 }

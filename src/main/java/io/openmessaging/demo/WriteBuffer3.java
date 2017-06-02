@@ -108,7 +108,7 @@ public class WriteBuffer3 {
 				// reMap();
 				// 为测试优化, 测试不会出现换文件
 				buffer = mappedFileChannel.map(FileChannel.MapMode.READ_WRITE,
-						blockNumber.get() * bufferSize, bufferSize);
+						blockNumber.get() % fileBlockNumber * bufferSize, bufferSize);
 //			} else if (close) {
 //				buffer.force();
 			}
