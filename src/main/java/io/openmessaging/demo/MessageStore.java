@@ -10,6 +10,10 @@ import io.openmessaging.Message;
 public class MessageStore {
 
 	private HashMap<String, Topic> topicCache = new HashMap<>();
+	// test
+	private long count1 = 0;
+	private long count2 = 0;
+	private long count3 = 0;
 
 	// for Producer
 	private final ByteBuffer KVToBytesBuffer = ByteBuffer.allocate(1 * 1024 * 1024);
@@ -60,9 +64,38 @@ public class MessageStore {
 //			e.printStackTrace();
 //		}
 
+		long start1 = System.nanoTime();
 		byte[] messageByte = messageToBytes(message);
+		long start2 = System.nanoTime();
+		
+		// 法一
+//		try {
+//			topic.putMessage(messageByte);
+//		} catch (InterruptedException e) {
+//			e.printStackTrace();
+//		}
+
+		// 法二
 		try {
-			topic.putMessage(messageByte);
+			// 2. 添加 Index
+			long offset = topic.appendIndex(messageByte.length);
+			long start3 = System.nanoTime();
+			// 3. 放入阻塞队列
+			WriteBuffer3 tmpWriteBuffer = topic.getWriteLogFileBuffer();
+			if (offset % Constants.LOG_BUFFER_SIZE + messageByte.length <= Constants.LOG_BUFFER_SIZE) {
+				GlobalResource.putWriteTask(new WriteTask(tmpWriteBuffer, messageByte, offset));
+			} else { // 跨 buffer 的, 分为两个放入 Queue
+				int size1 = (int) (Constants.LOG_BUFFER_SIZE - offset % Constants.LOG_BUFFER_SIZE);
+				byte[] part1 = new byte[size1], part2 = new byte[messageByte.length - size1];
+				System.arraycopy(messageByte, 0, part1, 0, size1);
+				System.arraycopy(messageByte, size1, part2, 0, part2.length);
+				GlobalResource.putWriteTask(new WriteTask(tmpWriteBuffer, part1, offset));
+				GlobalResource.putWriteTask(new WriteTask(tmpWriteBuffer, part2, offset + size1));
+			}
+			long start4 = System.nanoTime();
+			count1 += start2 - start1;
+			count2 += start3 - start2;
+			count3 += start4 - start3;
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
@@ -276,6 +309,11 @@ public class MessageStore {
 
 	// for Producer
 	public void flush() {
+		System.out.println("count1=" + count1);
+		System.out.println("count2=" + count2);
+		System.out.println("count3=" + count3);
+		long start = System.nanoTime();
 		GlobalResource.flush();
+		System.out.println("count4=" + (System.nanoTime() - start));
 	}
 }

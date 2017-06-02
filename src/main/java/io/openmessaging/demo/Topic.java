@@ -67,20 +67,28 @@ public class Topic {
 	}
 
 	// for Producer, 串行
-	public synchronized void putMessage(byte[] messageByte) throws InterruptedException {
-		// 2. 添加 Index
-		long offset = lastFile.updateAndAppendIndex(messageByte.length, writeIndexFileBuffer);
-		// 3. 放入阻塞队列
-		if (offset % Constants.LOG_BUFFER_SIZE + messageByte.length <= Constants.LOG_BUFFER_SIZE) {
-			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, messageByte, offset));
-		} else { // 跨 buffer 的, 分为两个放入 Queue
-			int size1 = (int) (Constants.LOG_BUFFER_SIZE - offset % Constants.LOG_BUFFER_SIZE);
-			byte[] part1 = new byte[size1], part2 = new byte[messageByte.length - size1];
-			System.arraycopy(messageByte, 0, part1, 0, size1);
-			System.arraycopy(messageByte, size1, part2, 0, part2.length);
-			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, part1, offset));
-			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, part2, offset + size1));
-		}
+//	public synchronized void putMessage(byte[] messageByte) throws InterruptedException {
+//		// 2. 添加 Index
+//		long offset = lastFile.updateAndAppendIndex(messageByte.length, writeIndexFileBuffer);
+//		// 3. 放入阻塞队列
+//		if (offset % Constants.LOG_BUFFER_SIZE + messageByte.length <= Constants.LOG_BUFFER_SIZE) {
+//			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, messageByte, offset));
+//		} else { // 跨 buffer 的, 分为两个放入 Queue
+//			int size1 = (int) (Constants.LOG_BUFFER_SIZE - offset % Constants.LOG_BUFFER_SIZE);
+//			byte[] part1 = new byte[size1], part2 = new byte[messageByte.length - size1];
+//			System.arraycopy(messageByte, 0, part1, 0, size1);
+//			System.arraycopy(messageByte, size1, part2, 0, part2.length);
+//			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, part1, offset));
+//			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, part2, offset + size1));
+//		}
+//	}
+
+	public synchronized long appendIndex(int size) throws InterruptedException {
+		return lastFile.updateAndAppendIndex(size, writeIndexFileBuffer);
+	}
+
+	public WriteBuffer3 getWriteLogFileBuffer() {
+		return writeLogFileBuffer;
 	}
 
 	// for Consumer

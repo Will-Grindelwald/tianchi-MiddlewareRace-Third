@@ -29,7 +29,7 @@ public class Constants {
 	// 用于 Buffer ReMap 的线程池 TODO 待测
 //	public static final int REMAP_THREAD_CONUT = 10;
 	// 用于 Buffer ReMap 的线程池 TODO 待测
-	public static final int WRITE_MESSAGE_THREAD_CONUT = 10;
+	public static final int WRITE_MESSAGE_THREAD_CONUT = 5;
 
 	// for BlockingQueue
 	public static final int BLOCKING_QUEUE_SIZE = 8000000;

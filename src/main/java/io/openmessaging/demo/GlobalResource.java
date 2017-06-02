@@ -38,7 +38,7 @@ public class GlobalResource {
 	// for test
 	private static final ScheduledExecutorService test = Executors.newSingleThreadScheduledExecutor();
 	static {
-		test.scheduleAtFixedRate(() -> System.out.println(WriteTaskBlockQueue.size()), 180000, 100, TimeUnit.MILLISECONDS);
+		test.scheduleAtFixedRate(() -> System.out.println(WriteTaskBlockQueue.size()), 100, 100, TimeUnit.MILLISECONDS);
 	}
 
 	private GlobalResource() {

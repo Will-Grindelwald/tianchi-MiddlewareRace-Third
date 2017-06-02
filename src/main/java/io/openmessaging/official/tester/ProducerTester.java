@@ -69,7 +69,7 @@ public class ProducerTester {
 					}
 					byte[] var = (label + "_" + offsets.get(queueOrTopic)).getBytes();
 					System.arraycopy(var, 0, news, news.length - var.length, var.length);
-					Message message = producer.createBytesMessageToQueue(queueOrTopic, news);
+					Message message = producer.createBytesMessageToQueue(queueOrTopic, news.clone());
 					logger.debug("queueOrTopic:{} offset:{}", queueOrTopic, label + "_" + offsets.get(queueOrTopic));
 					offsets.put(queueOrTopic, offsets.get(queueOrTopic) + 1);
 					producer.send(message);
