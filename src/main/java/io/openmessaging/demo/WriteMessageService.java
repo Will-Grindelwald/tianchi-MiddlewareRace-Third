@@ -5,8 +5,8 @@ public class WriteMessageService implements Runnable {
 	@Override
 	public void run() {
 		WriteTask task = null;
-		while (true) {
-			try {
+		try {
+			while (true) {
 				// 1
 				if (task == null) {
 					task = GlobalResource.takeWriteTask();
@@ -15,12 +15,12 @@ public class WriteMessageService implements Runnable {
 				if (task.messageBytes != null) {
 					task.WriteBuffer.write(task.messageBytes, task.offset);
 				} else {
-//					task.WriteBuffer.write(task.intValue, task.offset);
+					// task.WriteBuffer.write(task.intValue, task.offset);
 				}
 				task = null;
-			} catch (InterruptedException e) {
-				e.printStackTrace();
 			}
+		} catch (InterruptedException e) {
+			e.printStackTrace();
 		}
 	}
 

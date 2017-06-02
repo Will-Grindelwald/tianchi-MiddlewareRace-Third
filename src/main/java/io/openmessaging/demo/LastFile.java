@@ -53,7 +53,7 @@ public class LastFile {
 		return nextMessageOffset;
 	}
 
-	// for Producer, 由 appendIndex 而来, 是串行的
+	// for Producer, 由 appendIndex 而来, 单线程的
 	public long updateAndAppendIndex(int size, WriteBuffer3 writeIndexFileBuffer) throws InterruptedException {
 		long newOffset = nextMessageOffset;
 		Index.setOffset(lastIndexByte, newOffset);

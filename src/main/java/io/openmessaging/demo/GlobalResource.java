@@ -6,25 +6,21 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 // 全局资源, 应最大限度保证并发
 public class GlobalResource {
-//	private static volatile boolean close = false;
-	private static boolean close = false;
+	private static volatile boolean close = false;
 
 	private static final ConcurrentHashMap<String, Topic> topicHandler = new ConcurrentHashMap<>();
 
 	private static final LinkedBlockingQueue<WriteTask> WriteTaskBlockQueue = new LinkedBlockingQueue<>(
 			Constants.BLOCKING_QUEUE_SIZE);
 
-//	private static final ArrayBlockingQueue<WriteTask> WriteTaskBlockQueue = new ArrayBlockingQueue<>(
-//			Constants.BLOCKING_QUEUE_SIZE);
+	// private static final ArrayBlockingQueue<WriteTask> WriteTaskBlockQueue =
+	// new ArrayBlockingQueue<>(
+	// Constants.BLOCKING_QUEUE_SIZE);
 
-	// 用于 Buffer ReMap 的线程池
-//	private static final ExecutorService BufferReMapExecPool = Executors
-//			.newFixedThreadPool(Constants.REMAP_THREAD_CONUT);
+	private static final MyQueue<Topic> ReadyTopicBlockQueue = new MyQueue<>();
 
 	// 用于 WriteMessageToLogFile 的线程池
 	private static final ExecutorService WriteMessageExecPool = Executors
@@ -35,11 +31,32 @@ public class GlobalResource {
 		}
 	}
 
-	// for test
-	private static final ScheduledExecutorService test = Executors.newSingleThreadScheduledExecutor();
+	private static final ExecutorService UpdateLastTaskExecPool = Executors.newFixedThreadPool(10);
 	static {
-		test.scheduleAtFixedRate(() -> System.out.println("Q" + WriteTaskBlockQueue.size()), 100, 100, TimeUnit.MILLISECONDS);
+		for (int i = 0; i < 10; i++) {
+			UpdateLastTaskExecPool.submit(new UpdateLastService());
+		}
 	}
+
+	public static Topic takeReadyTopic() throws InterruptedException {
+		return ReadyTopicBlockQueue.take();
+	}
+
+	public static void addReadyTopic(Topic topic) throws InterruptedException {
+		ReadyTopicBlockQueue.add(topic);
+	}
+
+	// public static Future<?> summitUpdateTask(Runnable task) {
+	// return UpdateLastTaskExecPool.submit(task);
+	// }
+
+	// for test
+	// private static final ScheduledExecutorService test =
+	// Executors.newSingleThreadScheduledExecutor();
+	// static {
+	// test.scheduleAtFixedRate(() -> System.out.println("Q" +
+	// WriteTaskBlockQueue.size()), 100, 100, TimeUnit.MILLISECONDS);
+	// }
 
 	private GlobalResource() {
 	}
@@ -59,10 +76,6 @@ public class GlobalResource {
 	public static int getSizeOfWriteTaskBlockQueue() throws InterruptedException {
 		return WriteTaskBlockQueue.size();
 	}
-
-//	public static Future<?> submitReMapTask(Runnable task) {
-//		return BufferReMapExecPool.submit(task);
-//	}
 
 	public static synchronized void flush() {
 		if (!close) {

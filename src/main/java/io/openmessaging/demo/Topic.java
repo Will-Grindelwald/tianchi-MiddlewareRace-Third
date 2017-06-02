@@ -3,12 +3,15 @@ package io.openmessaging.demo;
 import java.io.File;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.LinkedBlockingQueue;
 
 // 一个 buchet 一个, 全局唯一, 小心并发
 public class Topic {
 
 	public final String bucket;
 	private final String path;
+
+	private final LinkedBlockingQueue<byte[]> messageBlockQueue = new LinkedBlockingQueue<>();
 
 	// Last file
 	private final LastFile lastFile;
@@ -67,23 +70,34 @@ public class Topic {
 	}
 
 	// for Producer, 串行
-//	public synchronized void putMessage(byte[] messageByte) throws InterruptedException {
-//		// 2. 添加 Index
-//		long offset = lastFile.updateAndAppendIndex(messageByte.length, writeIndexFileBuffer);
-//		// 3. 放入阻塞队列
-//		if (offset % Constants.LOG_BUFFER_SIZE + messageByte.length <= Constants.LOG_BUFFER_SIZE) {
-//			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, messageByte, offset));
-//		} else { // 跨 buffer 的, 分为两个放入 Queue
-//			int size1 = (int) (Constants.LOG_BUFFER_SIZE - offset % Constants.LOG_BUFFER_SIZE);
-//			byte[] part1 = new byte[size1], part2 = new byte[messageByte.length - size1];
-//			System.arraycopy(messageByte, 0, part1, 0, size1);
-//			System.arraycopy(messageByte, size1, part2, 0, part2.length);
-//			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, part1, offset));
-//			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, part2, offset + size1));
-//		}
-//	}
+	public synchronized void doAppendMessage() {
+		try {
+			// 添加 Index
+			byte[] messageByte = messageBlockQueue.take();
+			long offset = lastFile.updateAndAppendIndex(messageByte.length, writeIndexFileBuffer);
+			// 放入阻塞队列
+			if (offset % Constants.LOG_BUFFER_SIZE + messageByte.length <= Constants.LOG_BUFFER_SIZE) {
+				GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, messageByte, offset));
+			} else { // 跨 buffer 的, 分为两个放入 Queue
+				int size1 = (int) (Constants.LOG_BUFFER_SIZE - offset % Constants.LOG_BUFFER_SIZE);
+				byte[] part1 = new byte[size1], part2 = new byte[messageByte.length - size1];
+				System.arraycopy(messageByte, 0, part1, 0, size1);
+				System.arraycopy(messageByte, size1, part2, 0, part2.length);
+				GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, part1, offset));
+				GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, part2, offset + size1));
+			}
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+	}
 
-	public synchronized long appendIndex(int size) throws InterruptedException {
+	// for Producer, 并发的
+	public void putMessage(byte[] messageByte) throws InterruptedException {
+		messageBlockQueue.put(messageByte);
+	}
+
+	// for UpdateLastService, 单线程的
+	public long appendIndex(int size) throws InterruptedException {
 		return lastFile.updateAndAppendIndex(size, writeIndexFileBuffer);
 	}
 

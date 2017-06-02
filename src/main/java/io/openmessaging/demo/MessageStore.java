@@ -17,7 +17,6 @@ public class MessageStore {
 	{
 		priID = ID++;
 	}
-	private long count0 = 0;
 	private long count1 = 0;
 	private long count2 = 0;
 	private long count3 = 0;
@@ -83,32 +82,44 @@ public class MessageStore {
 //		}
 
 		// 法二
+//		try {
+//			// 2. 添加 Index
+//			long offset = topic.appendIndex(messageByte.length);
+//			long start3 = System.nanoTime();
+//			// 3. 放入阻塞队列
+//			WriteBuffer3 tmpWriteBuffer = topic.getWriteLogFileBuffer();
+//			if (offset % Constants.LOG_BUFFER_SIZE + messageByte.length <= Constants.LOG_BUFFER_SIZE) {
+//				GlobalResource.putWriteTask(new WriteTask(tmpWriteBuffer, messageByte, offset));
+//			} else { // 跨 buffer 的, 分为两个放入 Queue
+//				int size1 = (int) (Constants.LOG_BUFFER_SIZE - offset % Constants.LOG_BUFFER_SIZE);
+//				byte[] part1 = new byte[size1], part2 = new byte[messageByte.length - size1];
+//				System.arraycopy(messageByte, 0, part1, 0, size1);
+//				System.arraycopy(messageByte, size1, part2, 0, part2.length);
+//				GlobalResource.putWriteTask(new WriteTask(tmpWriteBuffer, part1, offset));
+//				GlobalResource.putWriteTask(new WriteTask(tmpWriteBuffer, part2, offset + size1));
+//			}
+//			long start4 = System.nanoTime();
+//			count1 += start2 - start1;
+//			count2 += start3 - start2;
+//			count3 += start4 - start3;
+//			count0++;
+//			if (count0 % 100000 == 0) {
+//				System.out.println(priID + ":count1=" + (double) count1 / 1000000000);
+//				System.out.println(priID + ":count2=" + (double) count2 / 1000000000);
+//				System.out.println(priID + ":count3=" + (double) count3 / 1000000000);
+//			}
+//		} catch (InterruptedException e) {
+//			e.printStackTrace();
+//		}
+		// 法三
 		try {
-			// 2. 添加 Index
-			long offset = topic.appendIndex(messageByte.length);
+			topic.putMessage(messageByte);
 			long start3 = System.nanoTime();
-			// 3. 放入阻塞队列
-			WriteBuffer3 tmpWriteBuffer = topic.getWriteLogFileBuffer();
-			if (offset % Constants.LOG_BUFFER_SIZE + messageByte.length <= Constants.LOG_BUFFER_SIZE) {
-				GlobalResource.putWriteTask(new WriteTask(tmpWriteBuffer, messageByte, offset));
-			} else { // 跨 buffer 的, 分为两个放入 Queue
-				int size1 = (int) (Constants.LOG_BUFFER_SIZE - offset % Constants.LOG_BUFFER_SIZE);
-				byte[] part1 = new byte[size1], part2 = new byte[messageByte.length - size1];
-				System.arraycopy(messageByte, 0, part1, 0, size1);
-				System.arraycopy(messageByte, size1, part2, 0, part2.length);
-				GlobalResource.putWriteTask(new WriteTask(tmpWriteBuffer, part1, offset));
-				GlobalResource.putWriteTask(new WriteTask(tmpWriteBuffer, part2, offset + size1));
-			}
+			GlobalResource.addReadyTopic(topic);
 			long start4 = System.nanoTime();
 			count1 += start2 - start1;
 			count2 += start3 - start2;
 			count3 += start4 - start3;
-			count0++;
-			if (count0 % 100000 == 0) {
-				System.out.println(priID + ":count1=" + (double) count1 / 1000000000);
-				System.out.println(priID + ":count2=" + (double) count2 / 1000000000);
-				System.out.println(priID + ":count3=" + (double) count3 / 1000000000);
-			}
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
