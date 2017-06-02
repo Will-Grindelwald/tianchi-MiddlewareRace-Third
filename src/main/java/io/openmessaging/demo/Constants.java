@@ -9,8 +9,8 @@ public class Constants {
 	// for indexFile
 	public static final int INDEX_TYPE = 0;
 	public static final String INDEX_FILE_PREFIX = "Index";
-	// 524288 条 Index, 针对测试优化
-	public static final int INDEX_BUFFER_SIZE = INDEX_SIZE * 512 * 1024;
+	// 392 * 1024 条 Index, 针对测试优化
+	public static final int INDEX_BUFFER_SIZE = INDEX_SIZE * 392 * 1024;
 	public static final int INDEX_FILE_BLOCK_NUMBER = 1;
 	public static final int INDEX_FILE_SIZE = INDEX_BUFFER_SIZE * INDEX_FILE_BLOCK_NUMBER;
 
@@ -18,7 +18,7 @@ public class Constants {
 	public static final int LOG_TYPE = 1;
 	public static final String LOG_FILE_PREFIX = "LOG";
 	public static final int LOG_BUFFER_SIZE = 20 * 1024 * 1024; // 20 M
-	public static final int LOG_FILE_BLOCK_NUMBER = 4;
+	public static final int LOG_FILE_BLOCK_NUMBER = 3;
 	public static final int LOG_FILE_SIZE = LOG_BUFFER_SIZE * LOG_FILE_BLOCK_NUMBER;
 
 	// for Last

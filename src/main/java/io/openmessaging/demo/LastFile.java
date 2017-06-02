@@ -9,12 +9,11 @@ public class LastFile {
 	private final String fileName = Constants.LAST_FILE_NAME;
 	private final RandomAccessFile lastFile;
 
-	// 下面三个属性`互斥访问`以保证正确性
 	private long nextIndexOffset;
 	private long nextMessageOffset;
 	private final byte[] lastIndexByte = new byte[Constants.INDEX_SIZE];
 
-	private boolean close = false;
+	private volatile boolean close = false;
 
 	public LastFile(String path) {
 		this.path = path;
@@ -54,9 +53,8 @@ public class LastFile {
 		return nextMessageOffset;
 	}
 
-	// for Producer, updateAndAppendIndex 要串行！！
-	public synchronized long updateAndAppendIndex(int size, WriteBuffer3 writeIndexFileBuffer)
-			throws InterruptedException {
+	// for Producer, 由 appendIndex 而来, 是串行的
+	public long updateAndAppendIndex(int size, WriteBuffer3 writeIndexFileBuffer) throws InterruptedException {
 		long newOffset = nextMessageOffset;
 		Index.setOffset(lastIndexByte, newOffset);
 		Index.setSize(lastIndexByte, size);
@@ -69,8 +67,9 @@ public class LastFile {
 		return newOffset;
 	}
 
-	// 与 updateAndAppendIndex 互斥
-	public synchronized void flush() {
+	// for Producer, 由 GlobalResource.flush() 而来, 全局只会触发一次, 仅就测试来说不会与
+	// updateAndAppendIndex 同时发生, 所以不加锁
+	public void flush() {
 		if (!close)
 			close = true;
 		try {
@@ -79,8 +78,7 @@ public class LastFile {
 			lastFile.writeLong(nextMessageOffset);
 			lastFile.writeLong(Index.getOffset(lastIndexByte));
 			lastFile.writeInt(Index.getSize(lastIndexByte));
-			System.out.println("nextIndexOffset=" + nextIndexOffset); // test
-			System.out.println("nextMessageOffset=" + nextMessageOffset); // test
+//			System.out.println("nextIndexOffset=" + nextIndexOffset + "nextMessageOffset=" + nextMessageOffset); // test
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

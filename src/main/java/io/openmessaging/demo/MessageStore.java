@@ -1,12 +1,7 @@
 package io.openmessaging.demo;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
 
 import io.openmessaging.BytesMessage;
 import io.openmessaging.Message;
@@ -17,7 +12,7 @@ public class MessageStore {
 	private HashMap<String, Topic> topicCache = new HashMap<>();
 
 	// for Producer
-	private final ByteBuffer KVToBytesBuffer = ByteBuffer.allocate(2 * 1024 * 1024);
+	private final ByteBuffer KVToBytesBuffer = ByteBuffer.allocate(1 * 1024 * 1024);
 
 	// for Consumer
 	// 存 <bucket name, offsetInIndexFile>
@@ -30,8 +25,6 @@ public class MessageStore {
 
 	// for Produce
 	public void putMessage(String bucket, Message message) {
-		if (message == null)
-			return;
 		Topic topic;
 		if ((topic = topicCache.get(bucket)) == null) {
 			topic = GlobalResource.getTopicByName(bucket);
@@ -68,57 +61,43 @@ public class MessageStore {
 //		}
 
 		byte[] messageByte = messageToBytes(message);
-
 		try {
-			// 2. 添加 Index
-			long offset = topic.appendIndex(messageByte.length);
-			// 3. 放入阻塞队列
-			WriteBuffer3 tmpWriteBuffer = topic.getWriteLogFileBuffer();
-			if (offset % Constants.LOG_BUFFER_SIZE + messageByte.length <= Constants.LOG_BUFFER_SIZE) {
-				GlobalResource.putWriteTask(new WriteTask(tmpWriteBuffer, messageByte, offset));
-			} else { // 跨 buffer 的, 分为两个放入 Queue
-				int size1 = (int) (Constants.LOG_BUFFER_SIZE - offset % Constants.LOG_BUFFER_SIZE);
-				byte[] part1 = new byte[size1], part2 = new byte[messageByte.length - size1];
-				System.arraycopy(messageByte, 0, part1, 0, size1);
-				System.arraycopy(messageByte, size1, part2, 0, part2.length);
-				GlobalResource.putWriteTask(new WriteTask(tmpWriteBuffer, part1, offset));
-				GlobalResource.putWriteTask(new WriteTask(tmpWriteBuffer, part2, offset + size1));
-			}
+			topic.putMessage(messageByte);
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
 	}
 
-	// for Producer
-	public void putLogWriteTaskToQueue(WriteBuffer3 writeLogFileBuffer, byte[] bytes, long offset)
-			throws InterruptedException {
-		if (offset % Constants.LOG_BUFFER_SIZE + bytes.length <= Constants.LOG_BUFFER_SIZE) {
-			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, bytes, offset));
-		} else { // 跨 buffer 的, 分为两个放入 Queue
-			int size1 = (int) (Constants.LOG_BUFFER_SIZE - offset % Constants.LOG_BUFFER_SIZE);
-			byte[] part1 = new byte[size1], part2 = new byte[bytes.length - size1];
-			System.arraycopy(bytes, 0, part1, 0, size1);
-			System.arraycopy(bytes, size1, part2, 0, part2.length);
-			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, part1, offset));
-			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, part2, offset + size1));
-		}
-	}
+//	// for Producer
+//	public void putLogWriteTaskToQueue(WriteBuffer3 writeLogFileBuffer, byte[] bytes, long offset)
+//			throws InterruptedException {
+//		if (offset % Constants.LOG_BUFFER_SIZE + bytes.length <= Constants.LOG_BUFFER_SIZE) {
+//			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, bytes, offset));
+//		} else { // 跨 buffer 的, 分为两个放入 Queue
+//			int size1 = (int) (Constants.LOG_BUFFER_SIZE - offset % Constants.LOG_BUFFER_SIZE);
+//			byte[] part1 = new byte[size1], part2 = new byte[bytes.length - size1];
+//			System.arraycopy(bytes, 0, part1, 0, size1);
+//			System.arraycopy(bytes, size1, part2, 0, part2.length);
+//			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, part1, offset));
+//			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, part2, offset + size1));
+//		}
+//	}
 
-	// for Producer
-	public void putLogWriteTaskToQueue(WriteBuffer3 writeLogFileBuffer, int intValue, long offset)
-			throws InterruptedException {
-		if (offset % Constants.LOG_BUFFER_SIZE + 4 <= Constants.LOG_BUFFER_SIZE) {
-			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, intValue, offset));
-		} else { // 跨 buffer 的, 分为两个放入 Queue
-			byte[] bytes = Utils.intToByteArray(intValue);
-			int size1 = (int) (Constants.LOG_BUFFER_SIZE - offset % Constants.LOG_BUFFER_SIZE);
-			byte[] part1 = new byte[size1], part2 = new byte[4 - size1];
-			System.arraycopy(bytes, 0, part1, 0, size1);
-			System.arraycopy(bytes, size1, part2, 0, part2.length);
-			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, part1, offset));
-			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, part2, offset + size1));
-		}
-	}
+//	// for Producer
+//	public void putLogWriteTaskToQueue(WriteBuffer3 writeLogFileBuffer, int intValue, long offset)
+//			throws InterruptedException {
+//		if (offset % Constants.LOG_BUFFER_SIZE + 4 <= Constants.LOG_BUFFER_SIZE) {
+//			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, intValue, offset));
+//		} else { // 跨 buffer 的, 分为两个放入 Queue
+//			byte[] bytes = Utils.intToByteArray(intValue);
+//			int size1 = (int) (Constants.LOG_BUFFER_SIZE - offset % Constants.LOG_BUFFER_SIZE);
+//			byte[] part1 = new byte[size1], part2 = new byte[4 - size1];
+//			System.arraycopy(bytes, 0, part1, 0, size1);
+//			System.arraycopy(bytes, size1, part2, 0, part2.length);
+//			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, part1, offset));
+//			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, part2, offset + size1));
+//		}
+//	}
 
 	// for Consumer, 利用自己的 readIndexFileBuffer, readLogFileBuffer 快速消费
 	public Message pollMessage(String bucket) {
@@ -177,22 +156,22 @@ public class MessageStore {
 		return result;
 	}
 
-	public byte[] defaultKeyValueToBytes0(DefaultKeyValue kv) {
-		if (kv == null) {
-			return new byte[0];
-		}
-		ByteArrayOutputStream bout = new ByteArrayOutputStream();
-		try (ObjectOutputStream out = new ObjectOutputStream(bout)) {
-			out.writeObject(kv.getKVS());
-			out.flush();
-			byte[] bytes = bout.toByteArray();
-			bout.close();
-			return bytes;
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return null;
-	}
+//	public byte[] defaultKeyValueToBytes0(DefaultKeyValue kv) {
+//		if (kv == null) {
+//			return new byte[0];
+//		}
+//		ByteArrayOutputStream bout = new ByteArrayOutputStream();
+//		try (ObjectOutputStream out = new ObjectOutputStream(bout)) {
+//			out.writeObject(kv.getKVS());
+//			out.flush();
+//			byte[] bytes = bout.toByteArray();
+//			bout.close();
+//			return bytes;
+//		} catch (IOException e) {
+//			e.printStackTrace();
+//		}
+//		return null;
+//	}
 
 	// for Producer
 	public byte[] defaultKeyValueToBytes(DefaultKeyValue kv) {
@@ -296,14 +275,7 @@ public class MessageStore {
 	}
 
 	// for Producer
-	public void flush() throws InterruptedException {
-		while (GlobalResource.getSizeOfWriteTaskBlockQueue() != 0) {
-			// 全局的 WriteTaskQueue 非空
-			Thread.sleep(1000);
-		}
-		Iterator<Map.Entry<String, Topic>> iterator = topicCache.entrySet().iterator();
-		while (iterator.hasNext()) {
-			iterator.next().getValue().flush();
-		}
+	public void flush() {
+		GlobalResource.flush();
 	}
 }
