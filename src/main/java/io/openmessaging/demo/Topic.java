@@ -7,15 +7,13 @@ public class Topic {
 
 	private final String path;
 	public final String bucket;
-	public final int ID;
 
 	private final PersistenceFile indexFile; // Index file
 	private final PersistenceFile logFile; // Log File
 	private final WriteBuffer writeBuffer; // Write Buffer
 
-	public Topic(String bucket, int ID) {
+	public Topic(String bucket) {
 		this.bucket = bucket;
-		this.ID = ID;
 		path = System.getProperty("path") + "/" + bucket;
 		// topic dir
 		File file = new File(path);

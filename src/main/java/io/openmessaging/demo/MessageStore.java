@@ -26,10 +26,10 @@ public class MessageStore {
 
 	// for Consumer
 	// 存 <bucket name, offsetInIndexFile>
-	private final HashMap<String, Long> offsets = new HashMap<>();
+	private final HashMap<String, Integer> offsets = new HashMap<>();
+	private final HashMap<String, Integer> lastMessageOffsets = new HashMap<>();
 	private final ReadBuffer readIndexFileBuffer = new ReadBuffer(Constants.INDEX_TYPE);
 	private final ReadBuffer readLogFileBuffer = new ReadBuffer(Constants.LOG_TYPE);
-	private int lastMessageOffset = 0;
 
 	public MessageStore() {
 	}
@@ -45,7 +45,7 @@ public class MessageStore {
 		byte[] messageByte = messageToBytes(message);
 		long start2 = System.nanoTime();
 		try {
-			GlobalResource.putWriteTask(topic.ID, new WriteTask(topic.getWriteBuffer(), messageByte));
+			topic.getWriteBuffer().write(messageByte);
 			long start3 = System.nanoTime();
 			count1 += start2 - start1;
 			count2 += start3 - start2;
@@ -67,13 +67,14 @@ public class MessageStore {
 			topicCache.put(bucket, topic);
 		}
 		// Step 1: 读 Index
-		long offsetInIndexFile = offsets.getOrDefault(bucket, Long.valueOf(0));
+		int offsetInIndexFile = offsets.getOrDefault(bucket, Integer.valueOf(0));
+		int lastMessageOffset = lastMessageOffsets.getOrDefault(bucket, Integer.valueOf(0));
 		if (offsetInIndexFile == 0) {
 			readIndexFileBuffer.read(topic, 0);
 			offsetInIndexFile += Constants.INDEX_SIZE;
 		}
 		int offset = readIndexFileBuffer.read(topic, offsetInIndexFile);
-		if (offset == 0 || offset < lastMessageOffset)
+		if (offset == 0 || offset <= lastMessageOffset)
 			return null;
 
 		// Step 2: 读 Message
@@ -84,7 +85,7 @@ public class MessageStore {
 		// Step 3: 更新 Offset
 		Message result = bytesToMessage(messageBytes);
 		offsets.put(bucket, offsetInIndexFile + Constants.INDEX_SIZE);
-		lastMessageOffset = offset;
+		lastMessageOffsets.put(bucket, offset);
 		return result;
 	}
 
@@ -241,8 +242,5 @@ public class MessageStore {
 	public void flush() {
 		System.out.println(priID + ":count1=" + (double) count1 / 1000000000);
 		System.out.println(priID + ":count2=" + (double) count2 / 1000000000);
-		long start = System.nanoTime();
-		GlobalResource.flush();
-		System.out.println(priID + ":count4=" + (double) (System.nanoTime() - start) / 1000000000);
 	}
 }

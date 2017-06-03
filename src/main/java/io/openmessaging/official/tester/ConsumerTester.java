@@ -111,6 +111,9 @@ public class ConsumerTester {
 		for (int i = 1; i < 10; i++) {
 			topics.add("QUEUE_" + i);
 		}
+		for (int i = 10; i < 100; i++) {
+			topics.add("TOPIC_" + i);
+		}
 		for (int i = 0; i < ts.length; i++) {
 			ts[i] = new ConsumerTask("QUEUE_0", topics);
 		}

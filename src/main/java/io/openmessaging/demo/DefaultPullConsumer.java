@@ -39,25 +39,25 @@ public class DefaultPullConsumer implements PullConsumer {
 			return null;
 		}
 		Message message;
-		// // 慢轮询, 不致饿死后面的 topic, 又可提高 page cache 命中
-		// for (int index = 0; index < bucketList.size(); index++) {
-		// message = messageStore.pollMessage(bucketList.get(lastIndex));
-		// if (message != null) {
-		// // System.out.println("有消息了");
-		// return message;
-		// }
-		// // 只有不命中时才 lastIndex++, 命中时(此 topic 有新 message)会下一次继续读此 topic
-		// lastIndex = (lastIndex + 1) % (bucketList.size());
-		// }
-		// 针对测试优化
-		while (lastIndex < bucketList.size()) {
+		// 慢轮询, 不致饿死后面的 topic, 又可提高 page cache 命中
+		for (int index = 0; index < bucketList.size(); index++) {
 			message = messageStore.pollMessage(bucketList.get(lastIndex));
 			if (message != null) {
+				// System.out.println("有消息了");
 				return message;
 			}
 			// 只有不命中时才 lastIndex++, 命中时(此 topic 有新 message)会下一次继续读此 topic
-			lastIndex++;
+			lastIndex = (lastIndex + 1) % (bucketList.size());
 		}
+		// 针对测试优化
+//		while (lastIndex < bucketList.size()) {
+//			message = messageStore.pollMessage(bucketList.get(lastIndex));
+//			if (message != null) {
+//				return message;
+//			}
+//			// 只有不命中时才 lastIndex++, 命中时(此 topic 有新 message)会下一次继续读此 topic
+//			lastIndex++;
+//		}
 		return null;
 	}
 
