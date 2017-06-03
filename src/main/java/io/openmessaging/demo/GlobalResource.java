@@ -1,11 +1,9 @@
 package io.openmessaging.demo;
 
-import java.util.Iterator;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
 
 // 全局资源, 应最大限度保证并发
 public class GlobalResource {
@@ -15,7 +13,7 @@ public class GlobalResource {
 	private static final ConcurrentHashMap<String, Topic> topicHandler = new ConcurrentHashMap<>();
 
 	@SuppressWarnings("unchecked")
-	private static final LinkedBlockingQueue<WriteTask>[] WriteTaskBlockQueueArray = new LinkedBlockingQueue[Constants.WRITE_MESSAGE_THREAD_CONUT];
+	private static final ConcurrentLinkedQueue<WriteTask>[] WriteTaskQueueArray = new ConcurrentLinkedQueue[Constants.WRITE_MESSAGE_THREAD_CONUT];
 
 	// 用于 WriteMessageToLogFile 的线程池
 	private static final ExecutorService WriteMessageExecPool = Executors
@@ -23,29 +21,31 @@ public class GlobalResource {
 
 	static {
 		for (int i = 0; i < Constants.WRITE_MESSAGE_THREAD_CONUT; i++) {
-			WriteTaskBlockQueueArray[i] = new LinkedBlockingQueue<WriteTask>();
+			WriteTaskQueueArray[i] = new ConcurrentLinkedQueue<WriteTask>();
 			WriteMessageExecPool.submit(new WriteMessageService(i));
 		}
 	}
 
 	// for test
-//	private static final ScheduledExecutorService test = Executors.newSingleThreadScheduledExecutor();
-//	static {
-//		test.scheduleAtFixedRate(() -> {
-//			try {
-//				for (int i = 0; i < Constants.WRITE_MESSAGE_THREAD_CONUT; i++) {
-//					System.out.println("Q" + i + ":" + getSizeOfWriteTaskBlockQueue(i));
-//				}
-//			} catch (InterruptedException e) {
-//				e.printStackTrace();
-//			}
-//		}, 100, 1000, TimeUnit.MILLISECONDS);
-//	}
-//
-//	// for test
-//	public static int getSizeOfWriteTaskBlockQueue(int ID) throws InterruptedException {
-//		return WriteTaskBlockQueueArray[ID].size();
-//	}
+	// private static final ScheduledExecutorService test =
+	// Executors.newSingleThreadScheduledExecutor();
+	// static {
+	// test.scheduleAtFixedRate(() -> {
+	// try {
+	// for (int i = 0; i < Constants.WRITE_MESSAGE_THREAD_CONUT; i++) {
+	// System.out.println("Q" + i + ":" + getSizeOfWriteTaskBlockQueue(i));
+	// }
+	// } catch (InterruptedException e) {
+	// e.printStackTrace();
+	// }
+	// }, 100, 1000, TimeUnit.MILLISECONDS);
+	// }
+	//
+	// // for test
+	// public static int getSizeOfWriteTaskBlockQueue(int ID) throws
+	// InterruptedException {
+	// return WriteTaskBlockQueueArray[ID].size();
+	// }
 
 	private GlobalResource() {
 	}
@@ -58,17 +58,17 @@ public class GlobalResource {
 	}
 
 	public static void putWriteTask(int ID, WriteTask writeTask) throws InterruptedException {
-		WriteTaskBlockQueueArray[ID].put(writeTask);
+		WriteTaskQueueArray[ID].offer(writeTask);
 	}
 
 	public static WriteTask takeWriteTask(int ID) throws InterruptedException {
-		return WriteTaskBlockQueueArray[ID].take();
+		return WriteTaskQueueArray[ID].poll();
 	}
 
-	public static boolean WriteTaskBlockQueueIsEmpty() throws InterruptedException {
+	public static boolean WriteTaskQueueIsEmpty() throws InterruptedException {
 		boolean empty = true;
 		for (int i = 0; i < Constants.WRITE_MESSAGE_THREAD_CONUT && empty; i++) {
-			empty &= WriteTaskBlockQueueArray[i].isEmpty();
+			empty &= WriteTaskQueueArray[i].isEmpty();
 		}
 		return empty;
 	}
@@ -77,13 +77,9 @@ public class GlobalResource {
 		if (!close) {
 			close = true;
 			try {
-				while (!GlobalResource.WriteTaskBlockQueueIsEmpty()) {
+				while (!GlobalResource.WriteTaskQueueIsEmpty()) {
 					// 全局的 WriteTaskQueue 非空
-					Thread.sleep(1000);
-				}
-				Iterator<Map.Entry<String, Topic>> iterator = topicHandler.entrySet().iterator();
-				while (iterator.hasNext()) {
-					iterator.next().getValue().flush();
+					Thread.sleep(10);
 				}
 			} catch (InterruptedException e) {
 				e.printStackTrace();

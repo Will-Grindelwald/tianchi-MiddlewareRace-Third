@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.openmessaging</groupId>
-    <artifactId>open-messaging-demo</artifactId>
+    <artifactId>open-messaging</artifactId>
     <version>1.0</version>
 
 

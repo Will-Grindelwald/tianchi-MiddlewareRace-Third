@@ -53,7 +53,7 @@ public class ProducerTester {
 				offsets.put("TOPIC_" + i, 0);
 				offsets.put("QUEUE_" + i, 0);
 			}
-			news = new byte[200];
+			news = new byte[160];
 			Arrays.fill(news, (byte) 'q');
 		}
 

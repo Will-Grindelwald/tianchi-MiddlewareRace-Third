@@ -17,7 +17,7 @@ public class MessageStore {
 	{
 		priID = ID++;
 	}
-//	private long count0 = 0;
+	private long count0 = 0;
 	private long count1 = 0;
 	private long count2 = 0;
 
@@ -26,9 +26,10 @@ public class MessageStore {
 
 	// for Consumer
 	// 存 <bucket name, offsetInIndexFile>
-//	private final HashMap<String, Long> offsets = new HashMap<>();
-//	private final ReadBuffer readIndexFileBuffer = new ReadBuffer(Constants.INDEX_TYPE);
-//	private final ReadBuffer readLogFileBuffer = new ReadBuffer(Constants.LOG_TYPE);
+	private final HashMap<String, Long> offsets = new HashMap<>();
+	private final ReadBuffer readIndexFileBuffer = new ReadBuffer(Constants.INDEX_TYPE);
+	private final ReadBuffer readLogFileBuffer = new ReadBuffer(Constants.LOG_TYPE);
+	private int lastMessageOffset = 0;
 
 	public MessageStore() {
 	}
@@ -43,17 +44,16 @@ public class MessageStore {
 		long start1 = System.nanoTime();
 		byte[] messageByte = messageToBytes(message);
 		long start2 = System.nanoTime();
-
 		try {
-			GlobalResource.putWriteTask(topic.ID, new WriteTask(topic.getWriteLogFileBuffer(), messageByte));
+			GlobalResource.putWriteTask(topic.ID, new WriteTask(topic.getWriteBuffer(), messageByte));
 			long start3 = System.nanoTime();
 			count1 += start2 - start1;
 			count2 += start3 - start2;
-//			count0++;
-//			if (count0 % 500000 == 0) {
-//				System.out.println(priID + ":count1=" + (double) count1 / 1000000000);
-//				System.out.println(priID + ":count2=" + (double) count2 / 1000000000);
-//			}
+			count0++;
+			if (count0 % 500000 == 0) {
+				System.out.println(priID + ":count1=" + (double) count1 / 1000000000);
+				System.out.println(priID + ":count2=" + (double) count2 / 1000000000);
+			}
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
@@ -61,29 +61,31 @@ public class MessageStore {
 
 	// for Consumer, 利用自己的 readIndexFileBuffer, readLogFileBuffer 快速消费
 	public Message pollMessage(String bucket) {
-//		Topic topic;
-//		if ((topic = topicCache.get(bucket)) == null) {
-//			topic = GlobalResource.getTopicByName(bucket);
-//			topicCache.put(bucket, topic);
-//		}
-//		// Step 1: 读 Index
-//		long offsetInIndexFile = offsets.getOrDefault(bucket, Long.valueOf(0));
-//		byte[] index = readIndexFileBuffer.read(topic, offsetInIndexFile, Constants.INDEX_SIZE);
-//		if (index == null)
-//			return null;
-//
-//		// Step 2: 读 Message
-//		long offsetInLogFile = Index.getOffset(index);
-//		int messageSize = Index.getSize(index);
-//		byte[] messageBytes = readLogFileBuffer.read(topic, offsetInLogFile, messageSize);
-//		if (messageBytes == null)
-//			return null; // ERROR 有 index 无 message
-//
-//		// Step 3: 更新 Offset
-//		Message result = bytesToMessage(messageBytes);
-//		offsets.put(bucket, offsetInIndexFile + Constants.INDEX_SIZE);
-//		return result;
-		return null;
+		Topic topic;
+		if ((topic = topicCache.get(bucket)) == null) {
+			topic = GlobalResource.getTopicByName(bucket);
+			topicCache.put(bucket, topic);
+		}
+		// Step 1: 读 Index
+		long offsetInIndexFile = offsets.getOrDefault(bucket, Long.valueOf(0));
+		if (offsetInIndexFile == 0) {
+			readIndexFileBuffer.read(topic, 0);
+			offsetInIndexFile += Constants.INDEX_SIZE;
+		}
+		int offset = readIndexFileBuffer.read(topic, offsetInIndexFile);
+		if (offset == 0 || offset < lastMessageOffset)
+			return null;
+
+		// Step 2: 读 Message
+		byte[] messageBytes = readLogFileBuffer.read(topic, lastMessageOffset, offset - lastMessageOffset);
+		if (messageBytes == null)
+			return null; // ERROR 有 index 无 message
+
+		// Step 3: 更新 Offset
+		Message result = bytesToMessage(messageBytes);
+		offsets.put(bucket, offsetInIndexFile + Constants.INDEX_SIZE);
+		lastMessageOffset = offset;
+		return result;
 	}
 
 	// for Producer

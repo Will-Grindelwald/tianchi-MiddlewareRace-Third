@@ -15,9 +15,9 @@ public class DefaultPullConsumer implements PullConsumer {
 	private final MessageStore messageStore = new MessageStore();
 
 	private String queue;
-	// 存 queue name & topic name, set 去重
+	// 仅存 topic name(无 queue name), set 去重
 	private Set<String> buckets = new HashSet<>();
-	// 内容同 buckets, list 随机读
+	// topic name(有序) + queue name, list 随机读
 	private List<String> bucketList = new ArrayList<>();
 
 	private int lastIndex = 0;
@@ -38,18 +38,25 @@ public class DefaultPullConsumer implements PullConsumer {
 		if (bucketList.size() == 0 || queue == null) {
 			return null;
 		}
-		String bucket;
 		Message message;
-		// 慢轮询, 不致饿死后面的 topic, 又可提高 page cache 命中
-		for (int index = 0; index < bucketList.size(); index++) {
-			bucket = bucketList.get(lastIndex);
-			message = messageStore.pollMessage(bucket);
+		// // 慢轮询, 不致饿死后面的 topic, 又可提高 page cache 命中
+		// for (int index = 0; index < bucketList.size(); index++) {
+		// message = messageStore.pollMessage(bucketList.get(lastIndex));
+		// if (message != null) {
+		// // System.out.println("有消息了");
+		// return message;
+		// }
+		// // 只有不命中时才 lastIndex++, 命中时(此 topic 有新 message)会下一次继续读此 topic
+		// lastIndex = (lastIndex + 1) % (bucketList.size());
+		// }
+		// 针对测试优化
+		while (lastIndex < bucketList.size()) {
+			message = messageStore.pollMessage(bucketList.get(lastIndex));
 			if (message != null) {
-				// System.out.println("有消息了");
 				return message;
 			}
 			// 只有不命中时才 lastIndex++, 命中时(此 topic 有新 message)会下一次继续读此 topic
-			lastIndex = (lastIndex + 1) % (bucketList.size());
+			lastIndex++;
 		}
 		return null;
 	}
@@ -86,7 +93,6 @@ public class DefaultPullConsumer implements PullConsumer {
 
 		// 最后消费 queue
 		queue = queueName;
-		buckets.add(queueName);
 		bucketList.add(queueName);
 	}
 

@@ -1,6 +1,6 @@
 package io.openmessaging.official.tester;
 
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -107,8 +107,12 @@ public class ConsumerTester {
 
 	public static void main(String[] args) throws Exception {
 		Thread[] ts = new Thread[Constants.CON_NUM];
+		List<String> topics = new ArrayList<String>();
+		for (int i = 1; i < 10; i++) {
+			topics.add("QUEUE_" + i);
+		}
 		for (int i = 0; i < ts.length; i++) {
-			ts[i] = new ConsumerTask(Constants.QUEUE_PRE + i, Collections.singletonList(Constants.TOPIC_PRE + i));
+			ts[i] = new ConsumerTask("QUEUE_0", topics);
 		}
 		long start = System.currentTimeMillis();
 		for (int i = 0; i < ts.length; i++) {

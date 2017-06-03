@@ -9,35 +9,45 @@ import java.nio.channels.FileChannel;
  */
 public class WriteBuffer {
 
-	private static final int bufferSize = Constants.LOG_BUFFER_SIZE;
+	private static final int INDEX_BUFFER_SIZE = Constants.INDEX_BUFFER_SIZE;
+	private FileChannel indexMappedFileChannel = null;
+	private MappedByteBuffer indexBuffer;
+	private int blockNumberForIndex; // 当前映射块在整个 topic index 中的块号
 
-	private final PersistenceFile logFile;
-	private final LastFile lastFile;
-	private FileChannel mappedFileChannel = null;
-	private MappedByteBuffer buffer;
-	private int blockNumber; // 当前映射块在整个 topic 中的 块号
+	private static final int LOG_BUFFER_SIZE = Constants.LOG_BUFFER_SIZE;
+	private FileChannel logMappedFileChannel = null;
+	private MappedByteBuffer logBuffer;
+	private int blockNumberForLog; // 当前映射块在整个 topic log 中的块号
+
+	public volatile int nextMessageOffset;
 
 	private boolean open = false; // for init
-	private boolean close = false; // for flush
 
-	public WriteBuffer(PersistenceFile logFile, LastFile lastFile) {
-		this.logFile = logFile;
-		this.lastFile = lastFile;
-		blockNumber = lastFile.nextMessageOffset / bufferSize;
+	public WriteBuffer(PersistenceFile logFile, PersistenceFile indexFile) {
+		indexMappedFileChannel = indexFile.getFileChannel();
+		logMappedFileChannel = logFile.getFileChannel();
 	}
 
 	public void init() {
-		// get FileChannel
-		mappedFileChannel = logFile.getFileChannel();
-		if (mappedFileChannel == null) {
-			System.err.println("ERROR PersistenceFile 丢失");
-			new Exception().printStackTrace();
-			System.exit(0);
-		}
-		// init mappedBuffer
 		try {
-			buffer = mappedFileChannel.map(FileChannel.MapMode.READ_WRITE, blockNumber * bufferSize, bufferSize);
-			buffer.position((int) (lastFile.nextMessageOffset % bufferSize));
+			if (indexMappedFileChannel.size() == 0) { // 第一次启动生产者
+				blockNumberForIndex = 0;
+				indexBuffer = indexMappedFileChannel.map(FileChannel.MapMode.READ_WRITE, 0, INDEX_BUFFER_SIZE);
+				nextMessageOffset = 0;
+				indexBuffer.putInt(nextMessageOffset);
+				blockNumberForLog = 0;
+				logBuffer = logMappedFileChannel.map(FileChannel.MapMode.READ_WRITE, 0, LOG_BUFFER_SIZE);
+			} else {
+				blockNumberForIndex = (int) indexMappedFileChannel.size() / INDEX_BUFFER_SIZE;
+				indexBuffer = indexMappedFileChannel.map(FileChannel.MapMode.READ_WRITE,
+						blockNumberForIndex * INDEX_BUFFER_SIZE, INDEX_BUFFER_SIZE);
+				indexBuffer.position((int) indexMappedFileChannel.size() - Constants.INDEX_SIZE);
+				nextMessageOffset = indexBuffer.getInt();
+				blockNumberForLog = nextMessageOffset / LOG_BUFFER_SIZE;
+				logBuffer = logMappedFileChannel.map(FileChannel.MapMode.READ_WRITE,
+						blockNumberForLog * LOG_BUFFER_SIZE, LOG_BUFFER_SIZE);
+				logBuffer.position((int) (nextMessageOffset % LOG_BUFFER_SIZE));
+			}
 			open = true;
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -48,34 +58,30 @@ public class WriteBuffer {
 		if (!open)
 			init();
 		try {
-			lastFile.nextMessageOffset += bytes.length;
-			if (buffer.remaining() < bytes.length) {
-				int size = buffer.remaining();
-				buffer.put(bytes, 0, size);
-				buffer = mappedFileChannel.map(FileChannel.MapMode.READ_WRITE, (++blockNumber) * bufferSize,
-						bufferSize);
-				buffer.put(bytes, size, bytes.length - size);
+			nextMessageOffset += bytes.length;
+			indexBuffer.putInt(nextMessageOffset);
+			if (logBuffer.remaining() < bytes.length) {
+				int size = logBuffer.remaining();
+				logBuffer.put(bytes, 0, size);
+				logBuffer = logMappedFileChannel.map(FileChannel.MapMode.READ_WRITE,
+						(++blockNumberForLog) * LOG_BUFFER_SIZE, LOG_BUFFER_SIZE);
+				logBuffer.put(bytes, size, bytes.length - size);
 			} else {
-				buffer.put(bytes);
+				logBuffer.put(bytes);
 			}
-			if (buffer.remaining() == 0) {
-				buffer = mappedFileChannel.map(FileChannel.MapMode.READ_WRITE, (++blockNumber) * bufferSize,
-						bufferSize);
-			} else if (close) {
-				lastFile.flush();
+			if (indexBuffer.remaining() == 0) {
+				indexBuffer = indexMappedFileChannel.map(FileChannel.MapMode.READ_WRITE,
+						(++blockNumberForIndex) * INDEX_BUFFER_SIZE, INDEX_BUFFER_SIZE);
+			}
+			if (logBuffer.remaining() == 0) {
+				logBuffer = logMappedFileChannel.map(FileChannel.MapMode.READ_WRITE,
+						(++blockNumberForLog) * LOG_BUFFER_SIZE, LOG_BUFFER_SIZE);
 			}
 			return true;
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		return false;
-	}
-
-	// 由 GlobalResource.flush 而来, 只会调用一次
-	public void flush() {
-		if (!close)
-			close = true;
-		lastFile.flush();
 	}
 
 }

@@ -7,20 +7,21 @@ import java.nio.channels.FileChannel;
 
 public class PersistenceFile {
 	public final String path;
-	public final String fileName = Constants.LOG_FILE_NAME;
+	public final String fileName;
 
-	private final RandomAccessFile file;
+	private final RandomAccessFile randomAccessFile;
 	private final FileChannel fileChannel;
 
-	public PersistenceFile(String path) {
+	public PersistenceFile(String path, String fileName) {
 		this.path = path;
+		this.fileName = fileName;
 		File file = new File(path, fileName);
 		try {
 			if (!file.exists()) {
 				file.createNewFile();
 			}
-			this.file = new RandomAccessFile(file, "rw");
-			fileChannel = this.file.getChannel();
+			randomAccessFile = new RandomAccessFile(file, "rw");
+			fileChannel = randomAccessFile.getChannel();
 		} catch (IOException e) {
 			e.printStackTrace();
 			throw new ClientOMSException("PersistenceFile create failure", e);

@@ -9,12 +9,9 @@ public class Topic {
 	public final String bucket;
 	public final int ID;
 
-	// Last file
-	private final LastFile lastFile;
-
-	// LogFiles
-	private final PersistenceFile logFile;
-	private final WriteBuffer writeBuffer;
+	private final PersistenceFile indexFile; // Index file
+	private final PersistenceFile logFile; // Log File
+	private final WriteBuffer writeBuffer; // Write Buffer
 
 	public Topic(String bucket, int ID) {
 		this.bucket = bucket;
@@ -24,29 +21,28 @@ public class Topic {
 		File file = new File(path);
 		if (file.exists()) {
 			if (!file.isDirectory())
-				throw new ClientOMSException(path + " 不是一个目录");
+				throw new ClientOMSException(path + "不是一个目录");
 		} else {
 			file.mkdirs();
 		}
-		// Last file
-		lastFile = new LastFile(path);
-		// LogFile
-		logFile = new PersistenceFile(path);
-		writeBuffer = new WriteBuffer(logFile, lastFile);
+		indexFile = new PersistenceFile(path, Constants.INDEX_FILE_NAME);
+		logFile = new PersistenceFile(path, Constants.LOG_FILE_NAME);
+		writeBuffer = new WriteBuffer(logFile, indexFile);
 	}
 
-	public WriteBuffer getWriteLogFileBuffer() {
+	// for Producer
+	public WriteBuffer getWriteBuffer() {
 		return writeBuffer;
 	}
 
 	// for Consumer
-	public PersistenceFile getLogFileList() {
+	public PersistenceFile getLogFile() {
 		return logFile;
 	}
 
-	// for Producer, 由 GlobalResource.flush() 而来, 全局只会触发一次
-	public void flush() throws InterruptedException {
-		writeBuffer.flush();
+	// for Consumer
+	public PersistenceFile getIndexFile() {
+		return indexFile;
 	}
 
 }

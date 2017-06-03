@@ -14,7 +14,11 @@ public class WriteMessageService implements Runnable {
 		try {
 			while (true) {
 				task = GlobalResource.takeWriteTask(ID);
-				task.WriteBuffer.write(task.messageByte);
+				if (task == null) {
+					Thread.sleep(1);
+				} else {
+					task.WriteBuffer.write(task.messageByte);
+				}
 			}
 		} catch (InterruptedException e) {
 			e.printStackTrace();
