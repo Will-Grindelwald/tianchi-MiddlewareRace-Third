@@ -6,7 +6,7 @@ public class Constants {
 	public static final int INDEX_TYPE = 0;
 	public static final int INDEX_SIZE = 4;
 	public static final String INDEX_FILE_NAME = "Index";
-	public static final int INDEX_BUFFER_SIZE = 1600 * 1024;
+	public static final int INDEX_BUFFER_SIZE = 1600 * 1024; // TODO 可能要改
 
 	// for logFile
 	public static final int LOG_TYPE = 1;

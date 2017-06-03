@@ -11,16 +11,6 @@ public class MessageStore {
 
 	private HashMap<String, Topic> topicCache = new HashMap<>();
 
-	// test
-	private static int ID = 0;
-	private int priID;
-	{
-		priID = ID++;
-	}
-	private long count0 = 0;
-	private long count1 = 0;
-	private long count2 = 0;
-
 	// for Producer
 	private final ByteBuffer KVToBytesBuffer = ByteBuffer.allocate(1 * 1024 * 1024);
 
@@ -30,6 +20,16 @@ public class MessageStore {
 	private final HashMap<String, Integer> lastMessageOffsets = new HashMap<>();
 	private final ReadBuffer readIndexFileBuffer = new ReadBuffer(Constants.INDEX_TYPE);
 	private final ReadBuffer readLogFileBuffer = new ReadBuffer(Constants.LOG_TYPE);
+
+	// test
+	private static int ID = 0;
+	private int priID;
+	{
+		priID = ID++;
+	}
+	private long count0 = 0;
+	private long count1 = 0;
+	private long count2 = 0;
 
 	public MessageStore() {
 	}
@@ -119,23 +119,6 @@ public class MessageStore {
 		// TODO 添加数据压缩
 		return result;
 	}
-
-//	public byte[] defaultKeyValueToBytes0(DefaultKeyValue kv) {
-//		if (kv == null) {
-//			return new byte[0];
-//		}
-//		ByteArrayOutputStream bout = new ByteArrayOutputStream();
-//		try (ObjectOutputStream out = new ObjectOutputStream(bout)) {
-//			out.writeObject(kv.getKVS());
-//			out.flush();
-//			byte[] bytes = bout.toByteArray();
-//			bout.close();
-//			return bytes;
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//		}
-//		return null;
-//	}
 
 	// for Producer
 	public byte[] defaultKeyValueToBytes(DefaultKeyValue kv) {
