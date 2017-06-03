@@ -17,18 +17,18 @@ public class MessageStore {
 	{
 		priID = ID++;
 	}
+//	private long count0 = 0;
 	private long count1 = 0;
 	private long count2 = 0;
-	private long count3 = 0;
 
 	// for Producer
 	private final ByteBuffer KVToBytesBuffer = ByteBuffer.allocate(1 * 1024 * 1024);
 
 	// for Consumer
 	// 存 <bucket name, offsetInIndexFile>
-	private final HashMap<String, Long> offsets = new HashMap<>();
-	private final ReadBuffer readIndexFileBuffer = new ReadBuffer(Constants.INDEX_TYPE);
-	private final ReadBuffer readLogFileBuffer = new ReadBuffer(Constants.LOG_TYPE);
+//	private final HashMap<String, Long> offsets = new HashMap<>();
+//	private final ReadBuffer readIndexFileBuffer = new ReadBuffer(Constants.INDEX_TYPE);
+//	private final ReadBuffer readLogFileBuffer = new ReadBuffer(Constants.LOG_TYPE);
 
 	public MessageStore() {
 	}
@@ -40,146 +40,50 @@ public class MessageStore {
 			topic = GlobalResource.getTopicByName(bucket);
 			topicCache.put(bucket, topic);
 		}
-//		// 1. message To Bytes
-//		byte[] byteHeaders = defaultKeyValueToBytes0((DefaultKeyValue) (message.headers()));
-//		byte[] byteProperties = defaultKeyValueToBytes0((DefaultKeyValue) message.properties());
-//		byte[] byteBody = ((BytesMessage) message).getBody();
-//		int size = byteHeaders.length + byteProperties.length + byteBody.length + 2 * 4;
-//		try {
-//			// 2. 添加 Index
-//			long offset = topic.appendIndex(size);
-//			// 3. 放入阻塞队列
-//			WriteBuffer3 tmpLogWriteBuffer = topic.getWriteLogFileBuffer();
-//			// byteHeaders.length
-//			putLogWriteTaskToQueue(tmpLogWriteBuffer, byteHeaders.length, offset);
-//			offset += 4;
-//			// byteHeaders
-//			putLogWriteTaskToQueue(tmpLogWriteBuffer, byteHeaders, offset);
-//			offset += byteHeaders.length;
-//			// byteProperties.length
-//			putLogWriteTaskToQueue(tmpLogWriteBuffer, byteProperties.length, offset);
-//			offset += 4;
-//			if (byteProperties.length != 0) {
-//				// byteProperties
-//				putLogWriteTaskToQueue(tmpLogWriteBuffer, byteProperties, offset);
-//				offset += byteProperties.length;
-//			}
-//			// byteBody
-//			putLogWriteTaskToQueue(tmpLogWriteBuffer, byteBody, offset);
-//		} catch (InterruptedException e) {
-//			e.printStackTrace();
-//		}
-
 		long start1 = System.nanoTime();
 		byte[] messageByte = messageToBytes(message);
 		long start2 = System.nanoTime();
-		
-		// 法一
-//		try {
-//			topic.putMessage(messageByte);
-//		} catch (InterruptedException e) {
-//			e.printStackTrace();
-//		}
 
-		// 法二
-//		try {
-//			// 2. 添加 Index
-//			long offset = topic.appendIndex(messageByte.length);
-//			long start3 = System.nanoTime();
-//			// 3. 放入阻塞队列
-//			WriteBuffer3 tmpWriteBuffer = topic.getWriteLogFileBuffer();
-//			if (offset % Constants.LOG_BUFFER_SIZE + messageByte.length <= Constants.LOG_BUFFER_SIZE) {
-//				GlobalResource.putWriteTask(new WriteTask(tmpWriteBuffer, messageByte, offset));
-//			} else { // 跨 buffer 的, 分为两个放入 Queue
-//				int size1 = (int) (Constants.LOG_BUFFER_SIZE - offset % Constants.LOG_BUFFER_SIZE);
-//				byte[] part1 = new byte[size1], part2 = new byte[messageByte.length - size1];
-//				System.arraycopy(messageByte, 0, part1, 0, size1);
-//				System.arraycopy(messageByte, size1, part2, 0, part2.length);
-//				GlobalResource.putWriteTask(new WriteTask(tmpWriteBuffer, part1, offset));
-//				GlobalResource.putWriteTask(new WriteTask(tmpWriteBuffer, part2, offset + size1));
-//			}
-//			long start4 = System.nanoTime();
-//			count1 += start2 - start1;
-//			count2 += start3 - start2;
-//			count3 += start4 - start3;
-//			count0++;
-//			if (count0 % 100000 == 0) {
-//				System.out.println(priID + ":count1=" + (double) count1 / 1000000000);
-//				System.out.println(priID + ":count2=" + (double) count2 / 1000000000);
-//				System.out.println(priID + ":count3=" + (double) count3 / 1000000000);
-//			}
-//		} catch (InterruptedException e) {
-//			e.printStackTrace();
-//		}
-		// 法三
 		try {
-			topic.putMessage(messageByte);
+			GlobalResource.putWriteTask(topic.ID, new WriteTask(topic.getWriteLogFileBuffer(), messageByte));
 			long start3 = System.nanoTime();
-			GlobalResource.addReadyTopic(topic);
-			long start4 = System.nanoTime();
 			count1 += start2 - start1;
 			count2 += start3 - start2;
-			count3 += start4 - start3;
+//			count0++;
+//			if (count0 % 500000 == 0) {
+//				System.out.println(priID + ":count1=" + (double) count1 / 1000000000);
+//				System.out.println(priID + ":count2=" + (double) count2 / 1000000000);
+//			}
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
 	}
 
-//	// for Producer
-//	public void putLogWriteTaskToQueue(WriteBuffer3 writeLogFileBuffer, byte[] bytes, long offset)
-//			throws InterruptedException {
-//		if (offset % Constants.LOG_BUFFER_SIZE + bytes.length <= Constants.LOG_BUFFER_SIZE) {
-//			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, bytes, offset));
-//		} else { // 跨 buffer 的, 分为两个放入 Queue
-//			int size1 = (int) (Constants.LOG_BUFFER_SIZE - offset % Constants.LOG_BUFFER_SIZE);
-//			byte[] part1 = new byte[size1], part2 = new byte[bytes.length - size1];
-//			System.arraycopy(bytes, 0, part1, 0, size1);
-//			System.arraycopy(bytes, size1, part2, 0, part2.length);
-//			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, part1, offset));
-//			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, part2, offset + size1));
-//		}
-//	}
-
-//	// for Producer
-//	public void putLogWriteTaskToQueue(WriteBuffer3 writeLogFileBuffer, int intValue, long offset)
-//			throws InterruptedException {
-//		if (offset % Constants.LOG_BUFFER_SIZE + 4 <= Constants.LOG_BUFFER_SIZE) {
-//			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, intValue, offset));
-//		} else { // 跨 buffer 的, 分为两个放入 Queue
-//			byte[] bytes = Utils.intToByteArray(intValue);
-//			int size1 = (int) (Constants.LOG_BUFFER_SIZE - offset % Constants.LOG_BUFFER_SIZE);
-//			byte[] part1 = new byte[size1], part2 = new byte[4 - size1];
-//			System.arraycopy(bytes, 0, part1, 0, size1);
-//			System.arraycopy(bytes, size1, part2, 0, part2.length);
-//			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, part1, offset));
-//			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, part2, offset + size1));
-//		}
-//	}
-
 	// for Consumer, 利用自己的 readIndexFileBuffer, readLogFileBuffer 快速消费
 	public Message pollMessage(String bucket) {
-		Topic topic;
-		if ((topic = topicCache.get(bucket)) == null) {
-			topic = GlobalResource.getTopicByName(bucket);
-			topicCache.put(bucket, topic);
-		}
-		// Step 1: 读 Index
-		long offsetInIndexFile = offsets.getOrDefault(bucket, Long.valueOf(0));
-		byte[] index = readIndexFileBuffer.read(topic, offsetInIndexFile, Constants.INDEX_SIZE);
-		if (index == null)
-			return null;
-
-		// Step 2: 读 Message
-		long offsetInLogFile = Index.getOffset(index);
-		int messageSize = Index.getSize(index);
-		byte[] messageBytes = readLogFileBuffer.read(topic, offsetInLogFile, messageSize);
-		if (messageBytes == null)
-			return null; // ERROR 有 index 无 message
-
-		// Step 3: 更新 Offset
-		Message result = bytesToMessage(messageBytes);
-		offsets.put(bucket, offsetInIndexFile + Constants.INDEX_SIZE);
-		return result;
+//		Topic topic;
+//		if ((topic = topicCache.get(bucket)) == null) {
+//			topic = GlobalResource.getTopicByName(bucket);
+//			topicCache.put(bucket, topic);
+//		}
+//		// Step 1: 读 Index
+//		long offsetInIndexFile = offsets.getOrDefault(bucket, Long.valueOf(0));
+//		byte[] index = readIndexFileBuffer.read(topic, offsetInIndexFile, Constants.INDEX_SIZE);
+//		if (index == null)
+//			return null;
+//
+//		// Step 2: 读 Message
+//		long offsetInLogFile = Index.getOffset(index);
+//		int messageSize = Index.getSize(index);
+//		byte[] messageBytes = readLogFileBuffer.read(topic, offsetInLogFile, messageSize);
+//		if (messageBytes == null)
+//			return null; // ERROR 有 index 无 message
+//
+//		// Step 3: 更新 Offset
+//		Message result = bytesToMessage(messageBytes);
+//		offsets.put(bucket, offsetInIndexFile + Constants.INDEX_SIZE);
+//		return result;
+		return null;
 	}
 
 	// for Producer
@@ -335,7 +239,6 @@ public class MessageStore {
 	public void flush() {
 		System.out.println(priID + ":count1=" + (double) count1 / 1000000000);
 		System.out.println(priID + ":count2=" + (double) count2 / 1000000000);
-		System.out.println(priID + ":count3=" + (double) count3 / 1000000000);
 		long start = System.nanoTime();
 		GlobalResource.flush();
 		System.out.println(priID + ":count4=" + (double) (System.nanoTime() - start) / 1000000000);
