@@ -2,7 +2,6 @@ package io.openmessaging.demo;
 
 import java.io.File;
 
-// 一个 buchet 一个, 全局唯一, 小心并发
 public class Topic {
 
 	private final String path;
@@ -43,4 +42,7 @@ public class Topic {
 		return indexFile;
 	}
 
+	public void flush() {
+		writeBuffer.flush();
+	}
 }

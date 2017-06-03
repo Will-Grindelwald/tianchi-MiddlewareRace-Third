@@ -100,16 +100,16 @@ public class ReadBuffer {
 	}
 
 	// read index file, read a int value(offset)
-	public int read(Topic topic, long offset) {
+	public int readOffset(Topic topic, long offset) {
 		// readIndexFileBuffer 缓存不命中
 		if (this.topic != topic) {
 			// 1. 不是同一个 topic
 			if (!reMap(topic, offset))
 				return 0; // no more to map == no more new record
-		} else if (offset >= offsetInFile || offset < offsetInFile - size) {
-			// 2. 超出映射范围
-			if (!reMap(offset))
-				return 0; // no more to map == no more new record
+//		} else if (offset >= offsetInFile || offset < offsetInFile - size) {
+//			// 2. 超出映射范围
+//			if (!reMap(offset))
+//				return 0; // no more to map == no more new record
 		}
 		return buffer.getInt();
 	}

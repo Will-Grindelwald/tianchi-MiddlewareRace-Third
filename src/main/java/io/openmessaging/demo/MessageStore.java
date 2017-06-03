@@ -2,6 +2,9 @@ package io.openmessaging.demo;
 
 import java.nio.ByteBuffer;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import io.openmessaging.BytesMessage;
 import io.openmessaging.Message;
@@ -16,20 +19,19 @@ public class MessageStore {
 
 	// for Consumer
 	// 存 <bucket name, offsetInIndexFile>
-	private final HashMap<String, Integer> offsets = new HashMap<>();
-	private final HashMap<String, Integer> lastMessageOffsets = new HashMap<>();
+	private final HashMap<String, ReadPoint> readPoints = new HashMap<>();
 	private final ReadBuffer readIndexFileBuffer = new ReadBuffer(Constants.INDEX_TYPE);
 	private final ReadBuffer readLogFileBuffer = new ReadBuffer(Constants.LOG_TYPE);
 
 	// test
-	private static int ID = 0;
-	private int priID;
-	{
-		priID = ID++;
-	}
-	private long count0 = 0;
-	private long count1 = 0;
-	private long count2 = 0;
+//	private static int ID = 0;
+//	private int priID;
+//	{
+//		priID = ID++;
+//	}
+//	private long count0 = 0;
+//	private long count1 = 0;
+//	private long count2 = 0;
 
 	public MessageStore() {
 	}
@@ -41,19 +43,19 @@ public class MessageStore {
 			topic = GlobalResource.getTopicByName(bucket);
 			topicCache.put(bucket, topic);
 		}
-		long start1 = System.nanoTime();
+//		long start1 = System.nanoTime();
 		byte[] messageByte = messageToBytes(message);
-		long start2 = System.nanoTime();
+//		long start2 = System.nanoTime();
 		try {
 			topic.getWriteBuffer().write(messageByte);
-			long start3 = System.nanoTime();
-			count1 += start2 - start1;
-			count2 += start3 - start2;
-			count0++;
-			if (count0 % 500000 == 0) {
-				System.out.println(priID + ":count1=" + (double) count1 / 1000000000);
-				System.out.println(priID + ":count2=" + (double) count2 / 1000000000);
-			}
+//			long start3 = System.nanoTime();
+//			count1 += start2 - start1;
+//			count2 += start3 - start2;
+//			count0++;
+//			if (count0 % 500000 == 0) {
+//				System.out.println(priID + ":count1=" + (double) count1 / 1000000000);
+//				System.out.println(priID + ":count2=" + (double) count2 / 1000000000);
+//			}
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
@@ -67,25 +69,27 @@ public class MessageStore {
 			topicCache.put(bucket, topic);
 		}
 		// Step 1: 读 Index
-		int offsetInIndexFile = offsets.getOrDefault(bucket, Integer.valueOf(0));
-		int lastMessageOffset = lastMessageOffsets.getOrDefault(bucket, Integer.valueOf(0));
-		if (offsetInIndexFile == 0) {
-			readIndexFileBuffer.read(topic, 0);
-			offsetInIndexFile += Constants.INDEX_SIZE;
+		ReadPoint readPoint = readPoints.computeIfAbsent(bucket, bucketName -> new ReadPoint());
+		if (readPoint.offsetInIndex == 0) {
+			readIndexFileBuffer.readOffset(topic, 0);
+			readPoint.offsetInIndex = Constants.INDEX_SIZE;
 		}
-		int offset = readIndexFileBuffer.read(topic, offsetInIndexFile);
-		if (offset == 0 || offset <= lastMessageOffset)
+		int offset = readIndexFileBuffer.readOffset(topic, readPoint.offsetInIndex);
+		// TODO
+//		if (offset == 0 || offset <= readPoint.lastMessageOffset)
+		if (offset == 0)
 			return null;
 
 		// Step 2: 读 Message
-		byte[] messageBytes = readLogFileBuffer.read(topic, lastMessageOffset, offset - lastMessageOffset);
+		byte[] messageBytes = readLogFileBuffer.read(topic, readPoint.lastMessageOffset,
+				offset - readPoint.lastMessageOffset);
 		if (messageBytes == null)
 			return null; // ERROR 有 index 无 message
 
 		// Step 3: 更新 Offset
 		Message result = bytesToMessage(messageBytes);
-		offsets.put(bucket, offsetInIndexFile + Constants.INDEX_SIZE);
-		lastMessageOffsets.put(bucket, offset);
+		readPoint.offsetInIndex += Constants.INDEX_SIZE;
+		readPoint.lastMessageOffset = offset;
 		return result;
 	}
 
@@ -125,16 +129,20 @@ public class MessageStore {
 		if (kv == null) {
 			return new byte[0];
 		}
+		String key;
 		Object value;
 		byte[] keyBytes, stringValueBytes;
 		KVToBytesBuffer.clear();
-		for (String key : kv.keySet()) {
+		Iterator<Map.Entry<String, Object>> iterator = kv.getKVS().entrySet().iterator();
+		while (iterator.hasNext()) {
+			Entry<String, Object> entry = iterator.next();
 			// key
+			key = entry.getKey();
 			keyBytes = key.getBytes();
 			KVToBytesBuffer.putInt(keyBytes.length);
 			KVToBytesBuffer.put(keyBytes);
 			// value
-			value = kv.get(key);
+			value = entry.getValue();
 			if (value instanceof Integer) {
 				KVToBytesBuffer.put((byte) 0);
 				KVToBytesBuffer.putInt((Integer) value);
@@ -223,7 +231,15 @@ public class MessageStore {
 
 	// for Producer
 	public void flush() {
-		System.out.println(priID + ":count1=" + (double) count1 / 1000000000);
-		System.out.println(priID + ":count2=" + (double) count2 / 1000000000);
+//		System.out.println(priID + ":count1=" + (double) count1 / 1000000000);
+//		System.out.println(priID + ":count2=" + (double) count2 / 1000000000);
+//		long start = System.nanoTime();
+		GlobalResource.flush();
+//		System.out.println(priID + ":count4=" + (double) (System.nanoTime() - start) / 1000000000);
 	}
+}
+
+class ReadPoint {
+	int offsetInIndex = 0;
+	int lastMessageOffset = 0;
 }
