@@ -18,7 +18,6 @@ public class DefaultProducer implements Producer {
 		this.properties = properties;
 		if (System.getProperty("path") == null)
 			System.setProperty("path", properties.getString("STORE_PATH"));
-		GlobalResource.close.incrementAndGet();
 	}
 
 	@Override

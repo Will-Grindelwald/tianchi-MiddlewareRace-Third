@@ -19,8 +19,6 @@ public class WriteBuffer {
 	private MappedByteBuffer logBuffer;
 	private int blockNumberForLog; // 当前映射块在整个 topic log 中的块号
 
-	private byte[] bufferL2 = new byte[10 * 1024 * 1024];
-	private int count = 0;
 	private volatile int nextMessageOffset;
 
 	private boolean open = false; // for init
@@ -56,51 +54,20 @@ public class WriteBuffer {
 		}
 	}
 
-//	public synchronized boolean write(byte[] bytes) throws InterruptedException {
-//		if (!open)
-//			init();
-//		try {
-//			nextMessageOffset += bytes.length;
-//			indexBuffer.putInt(nextMessageOffset);
-//			if (logBuffer.remaining() < bytes.length) {
-//				int size = logBuffer.remaining();
-//				logBuffer.put(bytes, 0, size);
-//				logBuffer = logMappedFileChannel.map(FileChannel.MapMode.READ_WRITE,
-//						(++blockNumberForLog) * LOG_BUFFER_SIZE, LOG_BUFFER_SIZE);
-//				logBuffer.put(bytes, size, bytes.length - size);
-//			} else {
-//				logBuffer.put(bytes);
-//			}
-//			if (indexBuffer.remaining() == 0) {
-//				indexBuffer = indexMappedFileChannel.map(FileChannel.MapMode.READ_WRITE,
-//						(++blockNumberForIndex) * INDEX_BUFFER_SIZE, INDEX_BUFFER_SIZE);
-//			}
-//			if (logBuffer.remaining() == 0) {
-//				logBuffer = logMappedFileChannel.map(FileChannel.MapMode.READ_WRITE,
-//						(++blockNumberForLog) * LOG_BUFFER_SIZE, LOG_BUFFER_SIZE);
-//			}
-//			return true;
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//		}
-//		return false;
-//	}
-
 	public synchronized boolean write(byte[] bytes) throws InterruptedException {
 		if (!open)
 			init();
 		try {
 			nextMessageOffset += bytes.length;
 			indexBuffer.putInt(nextMessageOffset);
-			if (count + bytes.length > bufferL2.length) {
-				int size = bufferL2.length - count;
-				System.arraycopy(bytes, 0, bufferL2, count, size);
-				logBuffer.put(bufferL2);
-				count = bytes.length - size;
-				System.arraycopy(bytes, size, bufferL2, 0, count);
+			if (logBuffer.remaining() < bytes.length) {
+				int size = logBuffer.remaining();
+				logBuffer.put(bytes, 0, size);
+				logBuffer = logMappedFileChannel.map(FileChannel.MapMode.READ_WRITE,
+						(++blockNumberForLog) * LOG_BUFFER_SIZE, LOG_BUFFER_SIZE);
+				logBuffer.put(bytes, size, bytes.length - size);
 			} else {
-				System.arraycopy(bytes, 0, bufferL2, count, bytes.length);
-				count += bytes.length;
+				logBuffer.put(bytes);
 			}
 //			if (indexBuffer.remaining() == 0) {
 //				indexBuffer = indexMappedFileChannel.map(FileChannel.MapMode.READ_WRITE,
@@ -117,7 +84,4 @@ public class WriteBuffer {
 		return false;
 	}
 
-	public void flush() {
-		logBuffer.put(bufferL2, 0, count);
-	}
 }

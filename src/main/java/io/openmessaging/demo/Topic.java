@@ -42,7 +42,4 @@ public class Topic {
 		return indexFile;
 	}
 
-	public void flush() {
-		writeBuffer.flush();
-	}
 }

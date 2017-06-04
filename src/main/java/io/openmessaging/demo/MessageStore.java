@@ -233,9 +233,6 @@ public class MessageStore {
 	public void flush() {
 //		System.out.println(priID + ":count1=" + (double) count1 / 1000000000);
 //		System.out.println(priID + ":count2=" + (double) count2 / 1000000000);
-//		long start = System.nanoTime();
-		GlobalResource.flush();
-//		System.out.println(priID + ":count4=" + (double) (System.nanoTime() - start) / 1000000000);
 	}
 }
 
