@@ -7,7 +7,6 @@ public class Topic {
 	private final String path;
 	public final String bucket;
 
-	private final PersistenceFile indexFile; // Index file
 	private final PersistenceFile logFile; // Log File
 	private final WriteBuffer writeBuffer; // Write Buffer
 
@@ -22,9 +21,8 @@ public class Topic {
 		} else {
 			file.mkdirs();
 		}
-		indexFile = new PersistenceFile(path, Constants.INDEX_FILE_NAME);
 		logFile = new PersistenceFile(path, Constants.LOG_FILE_NAME);
-		writeBuffer = new WriteBuffer(logFile, indexFile);
+		writeBuffer = new WriteBuffer(logFile);
 	}
 
 	// for Producer
@@ -35,11 +33,6 @@ public class Topic {
 	// for Consumer
 	public PersistenceFile getLogFile() {
 		return logFile;
-	}
-
-	// for Consumer
-	public PersistenceFile getIndexFile() {
-		return indexFile;
 	}
 
 }

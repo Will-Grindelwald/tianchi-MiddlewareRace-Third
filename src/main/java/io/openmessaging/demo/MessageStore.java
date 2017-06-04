@@ -19,9 +19,7 @@ public class MessageStore {
 
 	// for Consumer
 	// 存 <bucket name, offsetInIndexFile>
-	private final HashMap<String, ReadPoint> readPoints = new HashMap<>();
-	private final ReadBuffer readIndexFileBuffer = new ReadBuffer(Constants.INDEX_TYPE);
-	private final ReadBuffer readLogFileBuffer = new ReadBuffer(Constants.LOG_TYPE);
+	private final ReadBuffer readBuffer = new ReadBuffer();
 
 //	// test
 //	private static int ID = 0;
@@ -68,29 +66,7 @@ public class MessageStore {
 			topic = GlobalResource.getTopicByName(bucket);
 			topicCache.put(bucket, topic);
 		}
-		// Step 1: 读 Index
-		ReadPoint readPoint = readPoints.computeIfAbsent(bucket, bucketName -> new ReadPoint());
-		if (readPoint.offsetInIndex == 0) {
-			readIndexFileBuffer.readOffset(topic, 0);
-			readPoint.offsetInIndex = Constants.INDEX_SIZE;
-		}
-		int offset = readIndexFileBuffer.readOffset(topic, readPoint.offsetInIndex);
-		// TODO
-//		if (offset == 0 || offset <= readPoint.lastMessageOffset)
-		if (offset == 0)
-			return null;
-
-		// Step 2: 读 Message
-		byte[] messageBytes = readLogFileBuffer.read(topic, readPoint.lastMessageOffset,
-				offset - readPoint.lastMessageOffset);
-		if (messageBytes == null)
-			return null; // ERROR 有 index 无 message
-
-		// Step 3: 更新 Offset
-		Message result = bytesToMessage(messageBytes);
-		readPoint.offsetInIndex += Constants.INDEX_SIZE;
-		readPoint.lastMessageOffset = offset;
-		return result;
+		return readBuffer.read(topic);
 	}
 
 	// for Producer
@@ -234,9 +210,4 @@ public class MessageStore {
 //		System.out.println(priID + ":count1=" + (double) count1 / 1000000000);
 //		System.out.println(priID + ":count2=" + (double) count2 / 1000000000);
 	}
-}
-
-class ReadPoint {
-	int offsetInIndex = 0;
-	int lastMessageOffset = 0;
 }
