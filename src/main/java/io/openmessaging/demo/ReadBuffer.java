@@ -1,11 +1,8 @@
 package io.openmessaging.demo;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.zip.GZIPInputStream;
 
 import io.openmessaging.Message;
 
@@ -21,10 +18,6 @@ public class ReadBuffer {
 	private FileChannel fileChannel;
 	private MappedByteBuffer buffer;
 	private long offsetInFile; // 映射区的末尾在源文件中的 offset
-
-	private byte[] bytes = null;
-	private int count = 0;
-	private int point = 0;
 
 	public ReadBuffer() {
 	}
@@ -65,33 +58,21 @@ public class ReadBuffer {
 			if (!reMap(topic))
 				return null; // no more to map == no more new record
 		}
-
 		int length;
-		if (count == 0) {
-			length = readInt();
-			if (length == 0)
-				return null;
-			bytes = unGZip(readByte(length));
-			count = bytes.length;
-			point = 0;
-		}
-		length = Utils.getInt(bytes, point); // byteBody.length
-		point += 4;
-		byte[] body = new byte[length];
-		System.arraycopy(bytes, point, body, 0, length); // byteBody
-		DefaultBytesMessage message = new DefaultBytesMessage(body);
-		point += length;
-		length = Utils.getInt(bytes, point); // byteHeaders.length
-		point += 4;
-		bytesToDefaultKeyValue((DefaultKeyValue) (message.headers()), bytes, point, length); // byteHeaders
-		point += length;
-		length = Utils.getInt(bytes, point); // byteProperties.length
-		point += 4;
+		byte[] bytes;
+		length = readInt(); // byteBody.length
+		if (length == 0)
+			return null;
+		bytes = readByte(length); // byteBody
+		DefaultBytesMessage message = new DefaultBytesMessage(bytes);
+		length = readInt(); // byteHeaders.length
+		bytes = readByte(length); // byteBody
+		bytesToDefaultKeyValue((DefaultKeyValue) (message.headers()), bytes, 0, length); // byteHeaders
+		length = readInt(); // byteProperties.length
 		if (length != 0) { // byteProperties
-			bytesToDefaultKeyValue((DefaultKeyValue) (message.properties()), bytes, point, length);
-			point += length;
+			bytes = readByte(length); // byteBody
+			bytesToDefaultKeyValue((DefaultKeyValue) (message.properties()), bytes, 0, length);
 		}
-		count = bytes.length - point;
 		return message;
 	}
 
@@ -163,28 +144,6 @@ public class ReadBuffer {
 			}
 		}
 		return kv;
-	}
-
-	public static byte[] unGZip(byte[] data) {
-		byte[] b = null;
-		try {
-			ByteArrayInputStream bis = new ByteArrayInputStream(data);
-			GZIPInputStream gzip = new GZIPInputStream(bis);
-			byte[] buf = new byte[1024];
-			int num = -1;
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			while ((num = gzip.read(buf, 0, buf.length)) != -1) {
-				baos.write(buf, 0, num);
-			}
-			b = baos.toByteArray();
-			baos.flush();
-			baos.close();
-			gzip.close();
-			bis.close();
-		} catch (Exception ex) {
-			ex.printStackTrace();
-		}
-		return b;
 	}
 
 }
