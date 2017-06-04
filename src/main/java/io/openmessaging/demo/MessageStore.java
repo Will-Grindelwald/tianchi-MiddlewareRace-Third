@@ -23,7 +23,7 @@ public class MessageStore {
 	private final ReadBuffer readIndexFileBuffer = new ReadBuffer(Constants.INDEX_TYPE);
 	private final ReadBuffer readLogFileBuffer = new ReadBuffer(Constants.LOG_TYPE);
 
-	// test
+//	// test
 //	private static int ID = 0;
 //	private int priID;
 //	{

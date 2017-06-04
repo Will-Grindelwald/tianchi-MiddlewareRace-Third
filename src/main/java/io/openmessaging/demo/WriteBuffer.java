@@ -3,6 +3,7 @@ package io.openmessaging.demo;
 import java.io.IOException;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * READ WRITE MappedByteBuffer Wrapper for Producer. 写缓存系统.
@@ -22,6 +23,9 @@ public class WriteBuffer {
 	private volatile int nextMessageOffset;
 
 	private boolean open = false; // for init
+	
+//	private AtomicBoolean sign = new AtomicBoolean(false);
+	private ReentrantLock lock = new ReentrantLock();
 
 	public WriteBuffer(PersistenceFile logFile, PersistenceFile indexFile) {
 		indexMappedFileChannel = indexFile.getFileChannel();
@@ -54,7 +58,12 @@ public class WriteBuffer {
 		}
 	}
 
-	public synchronized boolean write(byte[] bytes) throws InterruptedException {
+	public boolean write(byte[] bytes) throws InterruptedException {
+		// lock
+//		while (!sign.compareAndSet(false, true)) {
+//		}
+		lock.lock();
+
 		if (!open)
 			init();
 		try {
@@ -80,6 +89,10 @@ public class WriteBuffer {
 			return true;
 		} catch (IOException e) {
 			e.printStackTrace();
+		} finally {
+//			// unlock
+//			sign.compareAndSet(true, false);
+			lock.unlock();
 		}
 		return false;
 	}
