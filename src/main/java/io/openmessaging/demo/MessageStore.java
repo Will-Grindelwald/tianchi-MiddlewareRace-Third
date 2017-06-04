@@ -21,7 +21,7 @@ public class MessageStore {
 	// 存 <bucket name, offsetInIndexFile>
 	private final ReadBuffer readBuffer = new ReadBuffer();
 
-//	// test
+	// test
 //	private static int ID = 0;
 //	private int priID;
 //	{
@@ -45,7 +45,10 @@ public class MessageStore {
 		byte[] messageByte = messageToBytes(message);
 //		long start2 = System.nanoTime();
 		try {
-			topic.getWriteBuffer().write(messageByte);
+			// 法一
+//			topic.getWriteBuffer().write(messageByte);
+			// 法二
+			topic.putMessage(messageByte);
 //			long start3 = System.nanoTime();
 //			count1 += start2 - start1;
 //			count2 += start3 - start2;
@@ -209,5 +212,6 @@ public class MessageStore {
 	public void flush() {
 //		System.out.println(priID + ":count1=" + (double) count1 / 1000000000);
 //		System.out.println(priID + ":count2=" + (double) count2 / 1000000000);
+		GlobalResource.flush();
 	}
 }
