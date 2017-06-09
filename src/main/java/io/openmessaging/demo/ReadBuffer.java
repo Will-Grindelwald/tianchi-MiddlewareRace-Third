@@ -12,6 +12,9 @@ import java.util.List;
 public class ReadBuffer {
 
 	private final int type; // 0 for index, 1 for log
+	private final int bufferSize;
+	private final int FileSize;
+
 	private Topic topic = null;
 	private MappedByteBuffer buffer;
 	private long offsetInFile; // 映射区的末尾在源文件中的 offset
@@ -19,6 +22,13 @@ public class ReadBuffer {
 
 	public ReadBuffer(int type) {
 		this.type = type;
+		if (type == 0) { // index
+			bufferSize = Constants.INDEX_BUFFER_SIZE;
+			FileSize = Constants.INDEX_FILE_SIZE;
+		} else { // log
+			bufferSize = Constants.LOG_BUFFER_SIZE;
+			FileSize = Constants.LOG_FILE_SIZE;
+		}
 	}
 
 	/**
@@ -26,7 +36,7 @@ public class ReadBuffer {
 	 */
 	public boolean reMap(Topic topic, long offset) {
 		// get FileChannel
-		int fileID = (int) (offset / Constants.FILE_SIZE);
+		int fileID = (int) (offset / FileSize);
 		List<PersistenceFile> tmpFileList = type == 0 ? topic.getIndexFileList() : topic.getLogFileList();
 		FileChannel tmpFileChannel = null;
 		for (PersistenceFile file : tmpFileList) {
@@ -43,13 +53,13 @@ public class ReadBuffer {
 			System.exit(0);
 		}
 		try {
-			int remain = (int) (tmpFileChannel.size() - offset % Constants.FILE_SIZE);
-			int size = remain < Constants.BUFFER_SIZE ? remain : Constants.BUFFER_SIZE;
+			int remain = (int) (tmpFileChannel.size() - offset % FileSize);
+			int size = remain < bufferSize ? remain : bufferSize;
 			if (size != 0) {
 				// TODO 释放更快？待测
 				// if (buffer != null)
 				// BufferUtils.clean(buffer);
-				buffer = tmpFileChannel.map(FileChannel.MapMode.READ_ONLY, offset % Constants.FILE_SIZE, size);
+				buffer = tmpFileChannel.map(FileChannel.MapMode.READ_ONLY, offset % FileSize, size);
 				offsetInFile = offset + size;
 				this.size = size;
 				this.topic = topic; // 最后更新它

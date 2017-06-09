@@ -53,7 +53,7 @@ public class ProducerTester {
 				offsets.put("TOPIC_" + i, 0);
 				offsets.put("QUEUE_" + i, 0);
 			}
-			news = new byte[100 * 1024];
+			news = new byte[200];
 			Arrays.fill(news, (byte) 'q');
 		}
 
@@ -62,15 +62,10 @@ public class ProducerTester {
 			while (true) {
 				try {
 					String queueOrTopic;
-//					if (sendNum % 6 == 0) {
-//						queueOrTopic = "QUEUE_" + random.nextInt(10);
-//					} else {
-//						queueOrTopic = "TOPIC_" + sendNum % 6 + "" + random.nextInt(10);
-//					}
-					if (sendNum % 2 == 0) {
-						queueOrTopic = "QUEUE_0";
+					if (sendNum % 10 == 0) {
+						queueOrTopic = "QUEUE_" + random.nextInt(10);
 					} else {
-						queueOrTopic = "TOPIC_0";
+						queueOrTopic = "TOPIC_" + sendNum % 10 + "" + random.nextInt(10);
 					}
 					byte[] var = (label + "_" + offsets.get(queueOrTopic)).getBytes();
 					System.arraycopy(var, 0, news, news.length - var.length, var.length);
