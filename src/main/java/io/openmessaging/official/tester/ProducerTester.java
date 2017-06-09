@@ -53,7 +53,7 @@ public class ProducerTester {
 				offsets.put("TOPIC_" + i, 0);
 				offsets.put("QUEUE_" + i, 0);
 			}
-			news = new byte[200];
+			news = new byte[160];
 			Arrays.fill(news, (byte) 'q');
 		}
 
@@ -69,7 +69,7 @@ public class ProducerTester {
 					}
 					byte[] var = (label + "_" + offsets.get(queueOrTopic)).getBytes();
 					System.arraycopy(var, 0, news, news.length - var.length, var.length);
-					Message message = producer.createBytesMessageToQueue(queueOrTopic, news);
+					Message message = producer.createBytesMessageToQueue(queueOrTopic, news.clone());
 					logger.debug("queueOrTopic:{} offset:{}", queueOrTopic, label + "_" + offsets.get(queueOrTopic));
 					offsets.put(queueOrTopic, offsets.get(queueOrTopic) + 1);
 					producer.send(message);

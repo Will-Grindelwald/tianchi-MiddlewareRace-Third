@@ -3,7 +3,6 @@ package io.openmessaging.demo;
 import java.io.IOException;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.List;
 
 /**
  * READ ONLY MappedByteBuffer Wrapper for Consumer
@@ -13,7 +12,6 @@ public class ReadBuffer {
 
 	private final int type; // 0 for index, 1 for log
 	private final int bufferSize;
-	private final int FileSize;
 
 	private Topic topic = null;
 	private MappedByteBuffer buffer;
@@ -22,12 +20,10 @@ public class ReadBuffer {
 
 	public ReadBuffer(int type) {
 		this.type = type;
-		if (type == 0) { // index
+		if (type == Constants.INDEX_TYPE) { // index
 			bufferSize = Constants.INDEX_BUFFER_SIZE;
-			FileSize = Constants.INDEX_FILE_SIZE;
 		} else { // log
 			bufferSize = Constants.LOG_BUFFER_SIZE;
-			FileSize = Constants.LOG_FILE_SIZE;
 		}
 	}
 
@@ -36,30 +32,20 @@ public class ReadBuffer {
 	 */
 	public boolean reMap(Topic topic, long offset) {
 		// get FileChannel
-		int fileID = (int) (offset / FileSize);
-		List<PersistenceFile> tmpFileList = type == 0 ? topic.getIndexFileList() : topic.getLogFileList();
-		FileChannel tmpFileChannel = null;
-		for (PersistenceFile file : tmpFileList) {
-			if (file.fileID == fileID) {
-				tmpFileChannel = file.getFileChannel();
-				break;
-			}
-		}
-		if (tmpFileChannel == null) {
-			System.err.println("ERROR PersistenceFile 丢失");
-			System.err.println("offset=" + offset); /// test
-			System.err.println("fileID=" + fileID); /// test
-			new Exception().printStackTrace();
-			System.exit(0);
+		FileChannel tmpFileChannel;
+		if (type == Constants.INDEX_TYPE) { // index
+			tmpFileChannel = topic.getIndexFile().getFileChannel();
+		} else {
+			tmpFileChannel = topic.getLogFile().getFileChannel();
 		}
 		try {
-			int remain = (int) (tmpFileChannel.size() - offset % FileSize);
+			int remain = (int) (tmpFileChannel.size() - offset);
 			int size = remain < bufferSize ? remain : bufferSize;
 			if (size != 0) {
 				// TODO 释放更快？待测
 				// if (buffer != null)
 				// BufferUtils.clean(buffer);
-				buffer = tmpFileChannel.map(FileChannel.MapMode.READ_ONLY, offset % FileSize, size);
+				buffer = tmpFileChannel.map(FileChannel.MapMode.READ_ONLY, offset, size);
 				offsetInFile = offset + size;
 				this.size = size;
 				this.topic = topic; // 最后更新它
@@ -84,7 +70,7 @@ public class ReadBuffer {
 	}
 
 	/**
-	 * @return null when no more new record
+	 * @return null when error
 	 */
 	public byte[] read(Topic topic, long offset, int length) {
 		// readIndexFileBuffer 缓存不命中
@@ -92,16 +78,10 @@ public class ReadBuffer {
 			// 1. 不是同一个 topic
 			if (!reMap(topic, offset))
 				return null; // no more to map == no more new record
-			// buffer.load(); // TODO 测试 load 与 不 load 谁快
 		} else if (offset >= offsetInFile || offset < offsetInFile - size) {
 			// 2. 超出映射范围
 			if (!reMap(offset))
 				return null; // no more to map == no more new record
-			// buffer.load();
-		}
-		if (type == 0) {
-			if (offset >= topic.getNextIndexOffset())
-				return null;
 		}
 
 		byte[] result = new byte[length];
@@ -117,6 +97,21 @@ public class ReadBuffer {
 			buffer.get(result);
 		}
 		return result;
+	}
+
+	// read index file, read a int value(offset)
+	public int read(Topic topic, long offset) {
+		// readIndexFileBuffer 缓存不命中
+		if (this.topic != topic) {
+			// 1. 不是同一个 topic
+			if (!reMap(topic, offset))
+				return 0; // no more to map == no more new record
+		} else if (offset >= offsetInFile || offset < offsetInFile - size) {
+			// 2. 超出映射范围
+			if (!reMap(offset))
+				return 0; // no more to map == no more new record
+		}
+		return buffer.getInt();
 	}
 
 }

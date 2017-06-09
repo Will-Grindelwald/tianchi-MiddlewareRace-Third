@@ -94,10 +94,6 @@ public class DefaultProducer implements Producer {
 
 	@Override
 	public void flush() {
-		try {
-			messageStore.flush();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
+		messageStore.flush();
 	}
 }
