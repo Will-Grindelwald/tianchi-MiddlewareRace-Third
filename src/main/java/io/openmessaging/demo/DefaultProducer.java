@@ -10,13 +10,14 @@ import io.openmessaging.Producer;
 import io.openmessaging.Promise;
 
 public class DefaultProducer implements Producer {
-	private final MessageFactory messageFactory = new DefaultMessageFactory();
-	private final MessageStore messageStore;
 	private final KeyValue properties;
+	private final MessageStore messageStore = new MessageStore();
+	private final MessageFactory messageFactory = new DefaultMessageFactory();
 
 	public DefaultProducer(KeyValue properties) {
 		this.properties = properties;
-		messageStore = new MessageStore(properties.getString("STORE_PATH"));
+		if (System.getProperty("path") == null)
+			System.setProperty("path", properties.getString("STORE_PATH"));
 	}
 
 	@Override
@@ -45,7 +46,7 @@ public class DefaultProducer implements Producer {
 	}
 
 	@Override
-	public void send(Message message) {
+	public synchronized void send(Message message) {
 		if (message == null)
 			throw new ClientOMSException("Message should not be null");
 		String topic = message.headers().getString(MessageHeader.TOPIC);
@@ -93,6 +94,10 @@ public class DefaultProducer implements Producer {
 
 	@Override
 	public void flush() {
-		messageStore.flush();
+		try {
+			messageStore.flush();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 	}
 }
