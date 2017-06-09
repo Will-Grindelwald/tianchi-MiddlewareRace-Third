@@ -49,7 +49,7 @@ public class Topic {
 			indexFileList.add(new PersistenceFile(path, 0, Constants.INDEX_FILE_PREFIX));
 		}
 		writeIndexFileBuffer = new WriteBuffer3(Constants.INDEX_FILE_PREFIX, indexFileList,
-				lastFile.getNextIndexOffset());
+				lastFile.getNextIndexOffset(), Constants.INDEX_TYPE);
 		// LogFiles 及其 WriteBuffer
 		for (String indexFile : file.list((dir, name) -> name.startsWith(Constants.LOG_FILE_PREFIX))) {
 			try {
@@ -63,18 +63,15 @@ public class Topic {
 		if (logFileList.isEmpty()) {
 			logFileList.add(new PersistenceFile(path, 0, Constants.LOG_FILE_PREFIX));
 		}
-		writeLogFileBuffer = new WriteBuffer3(Constants.LOG_FILE_PREFIX, logFileList, lastFile.getNextMessageOffset());
+		writeLogFileBuffer = new WriteBuffer3(Constants.LOG_FILE_PREFIX, logFileList, lastFile.getNextMessageOffset(), Constants.LOG_TYPE);
 	}
 
-	// for Producer, 由 send -> putMessage 单线程调用
+	// for Producer
 	public long appendIndex(int size) throws InterruptedException {
 		return lastFile.updateAndAppendIndex(size, writeIndexFileBuffer);
 	}
 
-	public WriteBuffer3 getWriteIndexFileBuffer() {
-		return writeIndexFileBuffer;
-	}
-
+	// for Producer
 	public WriteBuffer3 getWriteLogFileBuffer() {
 		return writeLogFileBuffer;
 	}
@@ -98,9 +95,9 @@ public class Topic {
 		// 1. update lastIndex
 		lastFile.flush();
 		// 2. flush writeIndexFileBuffer
-		writeIndexFileBuffer.flush();
+//		writeIndexFileBuffer.flush();
 		// 3. flush writeLogFileBuffer
-		writeLogFileBuffer.flush();
+//		writeLogFileBuffer.flush();
 	}
 
 }

@@ -4,9 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 
-/**
- * 本类方法皆为 synchronized, 是为互斥修改属性, 从 topic 中的调用看应该只会被单线程调用
- */
 public class LastFile {
 	private final String path;
 	private final String fileName = Constants.LAST_FILE_NAME;
@@ -57,14 +54,13 @@ public class LastFile {
 		return nextMessageOffset;
 	}
 
-	// for Producer, 由 send -> putMessage -> appendIndex 单线程调用
+	// for Producer, updateAndAppendIndex 要串行！！
 	public synchronized long updateAndAppendIndex(int size, WriteBuffer3 writeIndexFileBuffer)
 			throws InterruptedException {
 		long newOffset = nextMessageOffset;
 		Index.setOffset(lastIndexByte, newOffset);
 		Index.setSize(lastIndexByte, size);
-		GlobalResource.putWriteTask(new WriteTask(lastIndexByte.clone(), writeIndexFileBuffer, nextIndexOffset));
-		// writeIndexFileBuffer.write(lastIndexByte);
+		GlobalResource.putWriteTask(new WriteTask(writeIndexFileBuffer, lastIndexByte.clone(), nextIndexOffset));
 		nextIndexOffset += Constants.INDEX_SIZE;
 		nextMessageOffset += size;
 		if (close) {
@@ -73,6 +69,7 @@ public class LastFile {
 		return newOffset;
 	}
 
+	// 仅在写文件时加个锁即可
 	public synchronized void flush() {
 		if (!close)
 			close = true;
@@ -82,8 +79,6 @@ public class LastFile {
 			lastFile.writeLong(nextMessageOffset);
 			lastFile.writeLong(Index.getOffset(lastIndexByte));
 			lastFile.writeInt(Index.getSize(lastIndexByte));
-			System.out.println("nextIndexOffset=" + nextIndexOffset); //// test
-			System.out.println("nextMessageOffset=" + nextMessageOffset); //// test
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

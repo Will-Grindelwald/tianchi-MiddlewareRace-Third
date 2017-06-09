@@ -1,5 +1,8 @@
 package io.openmessaging.demo;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -19,46 +22,105 @@ public class MessageStore {
 	// for Consumer
 	// 存 <bucket name, offsetInIndexFile>
 	private final HashMap<String, Long> offsets = new HashMap<>();
-	private final ReadBuffer readIndexFileBuffer = new ReadBuffer(0);
-	private final ReadBuffer readLogFileBuffer = new ReadBuffer(1);
+	private final ReadBuffer readIndexFileBuffer = new ReadBuffer(Constants.INDEX_TYPE);
+	private final ReadBuffer readLogFileBuffer = new ReadBuffer(Constants.LOG_TYPE);
 
 	public MessageStore() {
 	}
 
-	// for Produce, 由 send 单线程调用
+	// for Produce
 	public void putMessage(String bucket, Message message) {
 		if (message == null)
 			return;
-		// 1. message To Bytes
-		byte[] messageByte = messageToBytes(message);
-
 		Topic topic;
 		if ((topic = topicCache.get(bucket)) == null) {
 			topic = GlobalResource.getTopicByName(bucket);
 			topicCache.put(bucket, topic);
 		}
+//		// 1. message To Bytes
+//		byte[] byteHeaders = defaultKeyValueToBytes0((DefaultKeyValue) (message.headers()));
+//		byte[] byteProperties = defaultKeyValueToBytes0((DefaultKeyValue) message.properties());
+//		byte[] byteBody = ((BytesMessage) message).getBody();
+//		int size = byteHeaders.length + byteProperties.length + byteBody.length + 2 * 4;
+//		try {
+//			// 2. 添加 Index
+//			long offset = topic.appendIndex(size);
+//			// 3. 放入阻塞队列
+//			WriteBuffer3 tmpLogWriteBuffer = topic.getWriteLogFileBuffer();
+//			// byteHeaders.length
+//			putLogWriteTaskToQueue(tmpLogWriteBuffer, byteHeaders.length, offset);
+//			offset += 4;
+//			// byteHeaders
+//			putLogWriteTaskToQueue(tmpLogWriteBuffer, byteHeaders, offset);
+//			offset += byteHeaders.length;
+//			// byteProperties.length
+//			putLogWriteTaskToQueue(tmpLogWriteBuffer, byteProperties.length, offset);
+//			offset += 4;
+//			if (byteProperties.length != 0) {
+//				// byteProperties
+//				putLogWriteTaskToQueue(tmpLogWriteBuffer, byteProperties, offset);
+//				offset += byteProperties.length;
+//			}
+//			// byteBody
+//			putLogWriteTaskToQueue(tmpLogWriteBuffer, byteBody, offset);
+//		} catch (InterruptedException e) {
+//			e.printStackTrace();
+//		}
+
+		byte[] messageByte = messageToBytes(message);
+
 		try {
 			// 2. 添加 Index
 			long offset = topic.appendIndex(messageByte.length);
 			// 3. 放入阻塞队列
 			WriteBuffer3 tmpWriteBuffer = topic.getWriteLogFileBuffer();
-			if (offset % Constants.BUFFER_SIZE + messageByte.length <= Constants.BUFFER_SIZE) {
-				GlobalResource.putWriteTask(new WriteTask(messageByte, tmpWriteBuffer, offset));
+			if (offset % Constants.LOG_BUFFER_SIZE + messageByte.length <= Constants.LOG_BUFFER_SIZE) {
+				GlobalResource.putWriteTask(new WriteTask(tmpWriteBuffer, messageByte, offset));
 			} else { // 跨 buffer 的, 分为两个放入 Queue
-				int size1 = (int) (Constants.BUFFER_SIZE - offset % Constants.BUFFER_SIZE);
+				int size1 = (int) (Constants.LOG_BUFFER_SIZE - offset % Constants.LOG_BUFFER_SIZE);
 				byte[] part1 = new byte[size1], part2 = new byte[messageByte.length - size1];
 				System.arraycopy(messageByte, 0, part1, 0, size1);
 				System.arraycopy(messageByte, size1, part2, 0, part2.length);
-				GlobalResource.putWriteTask(new WriteTask(part1, tmpWriteBuffer, offset));
-				GlobalResource.putWriteTask(new WriteTask(part2, tmpWriteBuffer, offset + size1));
+				GlobalResource.putWriteTask(new WriteTask(tmpWriteBuffer, part1, offset));
+				GlobalResource.putWriteTask(new WriteTask(tmpWriteBuffer, part2, offset + size1));
 			}
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
 	}
 
-	// for Consumer
-	// 利用 MappedBuffer 读 message
+	// for Producer
+	public void putLogWriteTaskToQueue(WriteBuffer3 writeLogFileBuffer, byte[] bytes, long offset)
+			throws InterruptedException {
+		if (offset % Constants.LOG_BUFFER_SIZE + bytes.length <= Constants.LOG_BUFFER_SIZE) {
+			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, bytes, offset));
+		} else { // 跨 buffer 的, 分为两个放入 Queue
+			int size1 = (int) (Constants.LOG_BUFFER_SIZE - offset % Constants.LOG_BUFFER_SIZE);
+			byte[] part1 = new byte[size1], part2 = new byte[bytes.length - size1];
+			System.arraycopy(bytes, 0, part1, 0, size1);
+			System.arraycopy(bytes, size1, part2, 0, part2.length);
+			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, part1, offset));
+			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, part2, offset + size1));
+		}
+	}
+
+	// for Producer
+	public void putLogWriteTaskToQueue(WriteBuffer3 writeLogFileBuffer, int intValue, long offset)
+			throws InterruptedException {
+		if (offset % Constants.LOG_BUFFER_SIZE + 4 <= Constants.LOG_BUFFER_SIZE) {
+			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, intValue, offset));
+		} else { // 跨 buffer 的, 分为两个放入 Queue
+			byte[] bytes = Utils.intToByteArray(intValue);
+			int size1 = (int) (Constants.LOG_BUFFER_SIZE - offset % Constants.LOG_BUFFER_SIZE);
+			byte[] part1 = new byte[size1], part2 = new byte[4 - size1];
+			System.arraycopy(bytes, 0, part1, 0, size1);
+			System.arraycopy(bytes, size1, part2, 0, part2.length);
+			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, part1, offset));
+			GlobalResource.putWriteTask(new WriteTask(writeLogFileBuffer, part2, offset + size1));
+		}
+	}
+
+	// for Consumer, 利用自己的 readIndexFileBuffer, readLogFileBuffer 快速消费
 	public Message pollMessage(String bucket) {
 		Topic topic;
 		if ((topic = topicCache.get(bucket)) == null) {
@@ -67,16 +129,13 @@ public class MessageStore {
 		}
 		// Step 1: 读 Index
 		long offsetInIndexFile = offsets.getOrDefault(bucket, Long.valueOf(0));
-//		System.out.println("offsetInIndexFile=" + offsetInIndexFile);
 		byte[] index = readIndexFileBuffer.read(topic, offsetInIndexFile, Constants.INDEX_SIZE);
 		if (index == null)
 			return null;
 
 		// Step 2: 读 Message
-//		System.out.println(Arrays.toString(index));
 		long offsetInLogFile = Index.getOffset(index);
 		int messageSize = Index.getSize(index);
-//		System.out.println("offsetInLogFile=" + offsetInLogFile);
 		byte[] messageBytes = readLogFileBuffer.read(topic, offsetInLogFile, messageSize);
 		if (messageBytes == null)
 			return null; // ERROR 有 index 无 message
@@ -116,6 +175,23 @@ public class MessageStore {
 		}
 		// TODO 添加数据压缩
 		return result;
+	}
+
+	public byte[] defaultKeyValueToBytes0(DefaultKeyValue kv) {
+		if (kv == null) {
+			return new byte[0];
+		}
+		ByteArrayOutputStream bout = new ByteArrayOutputStream();
+		try (ObjectOutputStream out = new ObjectOutputStream(bout)) {
+			out.writeObject(kv.getKVS());
+			out.flush();
+			byte[] bytes = bout.toByteArray();
+			bout.close();
+			return bytes;
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return null;
 	}
 
 	// for Producer
