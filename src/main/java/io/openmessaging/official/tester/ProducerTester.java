@@ -53,21 +53,21 @@ public class ProducerTester {
 				offsets.put("TOPIC_" + i, 0);
 				offsets.put("QUEUE_" + i, 0);
 			}
-			news = new byte[256 * 1024];
+			news = new byte[100 * 1024];
 			Arrays.fill(news, (byte) 'q');
 		}
 
 		@Override
         public void run() {
-        	
             while (true) {
                 try {
                     String queueOrTopic;
-                    if (sendNum % 10 == 0) {
+                    if (sendNum % 2 == 0) {
                         queueOrTopic = "QUEUE_" + random.nextInt(10);
                     } else {
                         queueOrTopic = "TOPIC_" + random.nextInt(10);
                     }
+                    queueOrTopic = "QUEUE_0";
                     byte[] var = (label + "_" + offsets.get(queueOrTopic)).getBytes();
                     System.arraycopy(var, 0, news, news.length - var.length, var.length);
                     Message message = producer.createBytesMessageToQueue(queueOrTopic, news);
@@ -83,6 +83,7 @@ public class ProducerTester {
                     break;
                 }
             }
+            producer.flush();
         }
 
 	}

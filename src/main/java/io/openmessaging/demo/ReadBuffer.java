@@ -5,8 +5,7 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 
 /**
- * READ ONLY MappedByteBuffer Wrapper
- * for Consumer
+ * READ ONLY MappedByteBuffer Wrapper for Consumer
  */
 // 仅用作 Consumer 的私有属性, 且对文件只读, 不会有竞争
 public class ReadBuffer {
@@ -15,7 +14,7 @@ public class ReadBuffer {
 	private FileChannel mappedFileChannel;
 	private MappedByteBuffer buffer;
 	private int size;
-	private int offsetInFile;
+	private long offsetInFile; // 映射区的末尾在源文件中的 offset
 
 	public ReadBuffer() {
 		// do nothing
@@ -25,7 +24,7 @@ public class ReadBuffer {
 	 * return false when no more file content to map. that is to say:
 	 * mappedFileChannel.size() = offsetInFile
 	 */
-	public boolean reMap(String bucket, FileChannel fileChannel, int offset, int size) {
+	public boolean reMap(String bucket, FileChannel fileChannel, long offset, int size) {
 		try {
 			if (fileChannel.size() - offset < size) {
 				size = (int) (fileChannel.size() - offset);
@@ -48,18 +47,14 @@ public class ReadBuffer {
 		return reMap(bucket, mappedFileChannel, offsetInFile, size);
 	}
 
-	public boolean reMap(int offset, int size) {
+	public boolean reMap(long offset, int size) {
 		return reMap(bucket, mappedFileChannel, offset, size);
 	}
 
 	/**
-	 * @param bucket bucket's name
-	 * @param fileChannel the fileChannel of bucket
-	 * @param offset 
-	 * @param length
 	 * @return null when no more new record
 	 */
-	public byte[] read(String bucket, FileChannel fileChannel, int offset, int length) {
+	public byte[] read(String bucket, FileChannel fileChannel, long offset, int length) {
 		// readIndexFileBuffer 缓存不命中
 		if (!bucket.equals(this.bucket)) { // 1. 不是同一个文件
 			if (!reMap(bucket, fileChannel, offset, Constants.BUFFER_SIZE))
@@ -85,4 +80,5 @@ public class ReadBuffer {
 		}
 		return result;
 	}
+
 }

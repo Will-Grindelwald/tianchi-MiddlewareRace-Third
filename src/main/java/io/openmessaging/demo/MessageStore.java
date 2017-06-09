@@ -5,7 +5,6 @@ import java.nio.channels.FileChannel;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.concurrent.locks.ReentrantLock;
 
 import io.openmessaging.BytesMessage;
 import io.openmessaging.Message;
@@ -13,67 +12,59 @@ import io.openmessaging.Message;
 // 一个 Producer/Consumer 一个，不会有并发
 public class MessageStore {
 
-	private final String path;
-	private HashMap<String, CommitLog> commitLogCache = new HashMap<>();
+	private HashMap<String, Topic> topicCache = new HashMap<>();
 
 	// for Producer
-	private ReentrantLock fileWriteLock = new ReentrantLock();
 	private final ByteBuffer KVToBytesBuffer = ByteBuffer.allocate(2 * 1024 * 1024);
-	private HashMap<String, Index> lastIndex = new HashMap<>();
 
 	// for Consumer
 	// 存 <bucket name, offsetInIndexFile>
-	private final HashMap<String, Integer> offsets = new HashMap<>();
+	private final HashMap<String, Long> offsets = new HashMap<>();
 	private final ReadBuffer readIndexFileBuffer = new ReadBuffer();
 	private final ReadBuffer readLogFileBuffer = new ReadBuffer();
 
-	public MessageStore(String path) {
-		this.path = path;
+	public MessageStore() {
 	}
 
 	// for Producer
 	public void putMessage(String bucket, Message message) {
 		if (message == null)
 			return;
-		// Step 1: message to byte[]
-		byte[] messages = messageToBytes(message);
-		// Step 2: 注册 Index
-		CommitLog commitLog;
-		if ((commitLog = commitLogCache.get(bucket)) == null) {
-			commitLog = CommitLogHandler.getCommitLogByName(path, bucket);
-			commitLogCache.put(bucket, commitLog);
+		byte[] messageByte = messageToBytes(message);
+
+		// 放入阻塞队列
+		Topic topic;
+		if ((topic = topicCache.get(bucket)) == null) {
+			topic = GlobalResource.getTopicByName(bucket);
+			topicCache.put(bucket, topic);
 		}
-		fileWriteLock.lock();
-		Index newIndex = commitLog.appendIndex(messages.length);
-		lastIndex.put(bucket, newIndex);
-		// Step 3: 写 Message
-		commitLog.appendMessage(messages, newIndex.fileID, newIndex.offset);
-		fileWriteLock.unlock();
+		topic.putMessageToQueue(messageByte);
 	}
 
 	// for Consumer
 	// 利用 MappedBuffer 读 message
 	public Message pollMessage(String bucket) {
-		CommitLog commitLog;
-		if ((commitLog = commitLogCache.get(bucket)) == null) {
-			commitLog = CommitLogHandler.getCommitLogByName(path, bucket);
-			commitLogCache.put(bucket, commitLog);
+		Topic topic;
+		if ((topic = topicCache.get(bucket)) == null) {
+			topic = GlobalResource.getTopicByName(bucket);
+			topicCache.put(bucket, topic);
 		}
 		// Step 1: 读 Index
-		int offsetInIndexFile = offsets.getOrDefault(bucket, Integer.valueOf(0));
-		FileChannel indexFileChannel = commitLog.getIndexFileChannel();
+		long offsetInIndexFile = offsets.getOrDefault(bucket, Long.valueOf(0));
+		FileChannel indexFileChannel = topic.getIndexFileChannelByOffset(offsetInIndexFile);
 		byte[] index = readIndexFileBuffer.read(bucket, indexFileChannel, offsetInIndexFile, Constants.INDEX_SIZE);
 		if (index == null)
 			return null;
 
 		// Step 2: 读 Message
-		int offsetInLogFile = Index.getOffset(index), messageSize = Index.getSize(index);
-		FileChannel logFileChannel = commitLog.getLogFileChannelByFileID(Index.getFileID(index));
+		long offsetInLogFile = Index.getOffset(index);
+		int messageSize = Index.getSize(index);
+		FileChannel logFileChannel = topic.getLogFileChannelByOffset(offsetInLogFile);
 		byte[] messageBytes = readLogFileBuffer.read(bucket, logFileChannel, offsetInLogFile, messageSize);
 		if (messageBytes == null)
 			return null; // ERROR 有 index 无 message
 
-		// Step 2: 更新 Offset
+		// Step 3: 更新 Offset
 		Message result = bytesToMessage(messageBytes);
 		offsets.put(bucket, offsetInIndexFile + Constants.INDEX_SIZE);
 		return result;
@@ -82,10 +73,10 @@ public class MessageStore {
 	// for Producer
 	/**
 	 * message 结构
-	 *  ------------------------------------------------------------------------
-	 *  |body.length| body |headers.length|headers|properties.length|properties|
-	 *  |int        |byte[]|int           |byte[] |int              |byte[]    |
-	 *  ------------------------------------------------------------------------
+	 * ------------------------------------------------------------------------
+	 * |body.length| body |headers.length|headers|properties.length|properties|
+	 * |int        |byte[]|int           |byte[] |int              |byte[]    |
+	 * ------------------------------------------------------------------------
 	 */
 	public byte[] messageToBytes(Message message) {
 		byte[] byteHeaders = defaultKeyValueToBytes((DefaultKeyValue) (message.headers()));
@@ -233,15 +224,14 @@ public class MessageStore {
 		return kv;
 	}
 
-	public void flush() {
-		String bucket;
-		Index value;
-		Iterator<Map.Entry<String, Index>> iterator = lastIndex.entrySet().iterator();
+	public void flush() throws InterruptedException {
+		while (GlobalResource.getSizeOfWriteTaskBlockQueue() != 0) {
+			// 全局的 WriteTaskQueue 非空
+			Thread.sleep(1000);
+		}
+		Iterator<Map.Entry<String, Topic>> iterator = topicCache.entrySet().iterator();
 		while (iterator.hasNext()) {
-			Map.Entry<String, Index> entry = iterator.next();
-			bucket = entry.getKey();
-			value = entry.getValue();
-			commitLogCache.get(bucket).flush(value);
+			iterator.next().getValue().flush();
 		}
 	}
 }
