@@ -4,57 +4,34 @@ import java.io.IOException;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 
+import io.openmessaging.Message;
+
 /**
  * READ ONLY MappedByteBuffer Wrapper for Consumer
  */
 // 仅用作 Consumer 的私有属性, 且对文件只读, 不会有竞争
 public class ReadBuffer {
 
-	private final int type; // 0 for index, 1 for log
-	private final int bufferSize;
+	private final int bufferSize = Constants.LOG_BUFFER_SIZE;
 
 	private Topic topic = null;
+	private FileChannel fileChannel;
 	private MappedByteBuffer buffer;
 	private long offsetInFile; // 映射区的末尾在源文件中的 offset
-	private int size;
 
-	public ReadBuffer(int type) {
-		this.type = type;
-		if (type == Constants.INDEX_TYPE) { // index
-			bufferSize = Constants.INDEX_BUFFER_SIZE;
-		} else { // log
-			bufferSize = Constants.LOG_BUFFER_SIZE;
-		}
+	public ReadBuffer() {
 	}
 
 	/**
 	 * return false when no more file content to map.
 	 */
-	public boolean reMap(Topic topic, long offset) {
-		// get FileChannel
-		FileChannel tmpFileChannel;
-		if (type == Constants.INDEX_TYPE) { // index
-			tmpFileChannel = topic.getIndexFile().getFileChannel();
-		} else {
-			tmpFileChannel = topic.getLogFile().getFileChannel();
-		}
+	public boolean reMap(Topic topic) {
+		fileChannel = topic.getLogFile().getFileChannel();
 		try {
-			int remain = (int) (tmpFileChannel.size() - offset);
-			int size = remain < bufferSize ? remain : bufferSize;
-			if (size != 0) {
-				// TODO 释放更快？待测
-				// if (buffer != null)
-				// BufferUtils.clean(buffer);
-				buffer = tmpFileChannel.map(FileChannel.MapMode.READ_ONLY, offset, size);
-				offsetInFile = offset + size;
-				this.size = size;
-				this.topic = topic; // 最后更新它
-				return true;
-			} else {
-				// 只有在 offset 映射到最后一个文件, 且文件不足 Constants.FILE_SIZE, 且
-				// tmpFileChannel.size() = offset 时, 才会 size = 0
-				return false;
-			}
+			buffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, bufferSize);
+			offsetInFile = bufferSize;
+			this.topic = topic;
+			return true;
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -62,56 +39,111 @@ public class ReadBuffer {
 	}
 
 	public boolean reMap() {
-		return reMap(topic, offsetInFile);
+		try {
+			if (fileChannel.size() - offsetInFile >= bufferSize) {
+				buffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, offsetInFile, offsetInFile + bufferSize);
+				offsetInFile += bufferSize;
+				return true;
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return false;
 	}
 
-	public boolean reMap(long offset) {
-		return reMap(topic, offset);
-	}
-
-	/**
-	 * @return null when error
-	 */
-	public byte[] read(Topic topic, long offset, int length) {
+	public Message read(Topic topic) {
 		// readIndexFileBuffer 缓存不命中
 		if (this.topic != topic) {
 			// 1. 不是同一个 topic
-			if (!reMap(topic, offset))
-				return null; // no more to map == no more new record
-		} else if (offset >= offsetInFile || offset < offsetInFile - size) {
-			// 2. 超出映射范围
-			if (!reMap(offset))
+			if (!reMap(topic))
 				return null; // no more to map == no more new record
 		}
+		int length;
+		byte[] bytes;
+		length = readInt(); // byteBody.length
+		if (length == 0)
+			return null;
+		bytes = readByte(length); // byteBody
+		DefaultBytesMessage message = new DefaultBytesMessage(bytes);
+		length = readInt(); // byteHeaders.length
+		bytes = readByte(length); // byteBody
+		bytesToDefaultKeyValue((DefaultKeyValue) (message.headers()), bytes, 0, length); // byteHeaders
+		length = readInt(); // byteProperties.length
+		if (length != 0) { // byteProperties
+			bytes = readByte(length); // byteBody
+			bytesToDefaultKeyValue((DefaultKeyValue) (message.properties()), bytes, 0, length);
+		}
+		return message;
+	}
 
+	public byte[] readByte(int length) {
 		byte[] result = new byte[length];
-		if (length > offsetInFile - offset) { // 读两段
-			int size1 = (int) (offsetInFile - offset);
+		if (buffer.remaining() < length) { // 读两段
+			int size1 = buffer.remaining();
 			buffer.get(result, 0, size1);
 			if (!reMap())
 				return null; // ERROR 文件损坏？
 			buffer.get(result, size1, length - size1);
 		} else { // other, 正常读
-			if (buffer.remaining() < length)
-				return null; // ERROR 文件损坏？
 			buffer.get(result);
 		}
 		return result;
 	}
 
-	// read index file, read a int value(offset)
-	public int read(Topic topic, long offset) {
-		// readIndexFileBuffer 缓存不命中
-		if (this.topic != topic) {
-			// 1. 不是同一个 topic
-			if (!reMap(topic, offset))
-				return 0; // no more to map == no more new record
-		} else if (offset >= offsetInFile || offset < offsetInFile - size) {
-			// 2. 超出映射范围
-			if (!reMap(offset))
-				return 0; // no more to map == no more new record
+	public int readInt() {
+		if (buffer.remaining() < 4) { // 读两段
+			byte[] result = new byte[4];
+			int size1 = buffer.remaining();
+			buffer.get(result, 0, size1);
+			if (!reMap())
+				return 0; // ERROR 文件损坏？
+			buffer.get(result, size1, 4 - size1);
+			return Utils.getInt(result, 0);
+		} else { // other, 正常读
+			return buffer.getInt();
 		}
-		return buffer.getInt();
+	}
+
+	public DefaultKeyValue bytesToDefaultKeyValue(DefaultKeyValue kv, byte[] kvBytes, int offset, int length) {
+		int end = offset + length;
+		int intValue;
+		long longValue;
+		double doubleValue;
+		String key, stringValue;
+		while (offset < end) {
+			intValue = Utils.getInt(kvBytes, offset);
+			offset += 4;
+			key = new String(kvBytes, offset, intValue);
+			offset += intValue;
+			switch (kvBytes[offset++]) {
+			case 0: // for int
+				intValue = Utils.getInt(kvBytes, offset);
+				offset += 4;
+				kv.put(key, intValue);
+				break;
+			case 1: // for long
+				longValue = Utils.getLong(kvBytes, offset);
+				offset += 8;
+				kv.put(key, longValue);
+				break;
+			case 2: // for double
+				doubleValue = Utils.getDouble(kvBytes, offset);
+				offset += 8;
+				kv.put(key, doubleValue);
+				break;
+			case 3: // for string
+				intValue = Utils.getInt(kvBytes, offset);
+				offset += 4;
+				stringValue = new String(kvBytes, offset, intValue);
+				offset += intValue;
+				kv.put(key, stringValue);
+				break;
+			default:
+				System.err.println("ERROR: bytesToDefaultKeyValue");
+				break;
+			}
+		}
+		return kv;
 	}
 
 }

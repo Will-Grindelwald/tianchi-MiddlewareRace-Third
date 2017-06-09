@@ -1,28 +1,17 @@
 package io.openmessaging.demo;
 
-import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
 import io.openmessaging.KeyValue;
 
-public class DefaultKeyValue implements KeyValue, Serializable {
+public class DefaultKeyValue implements KeyValue {
 
-	private static final long serialVersionUID = -8350329523468430634L;
-
-	private Map<String, Object> kvs = new HashMap<>();
-
-	public Object get(String key) {
-		return kvs.get(key);
-	}
+	private final Map<String, Object> kvs = new HashMap<>();
 
 	public Map<String, Object> getKVS() {
 		return kvs;
-	}
-
-	public void setKVS(Map<String, Object> kvs) {
-		this.kvs = kvs;
 	}
 
 	@Override

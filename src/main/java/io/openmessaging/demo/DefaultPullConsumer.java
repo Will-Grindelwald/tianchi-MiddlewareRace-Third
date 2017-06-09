@@ -39,25 +39,25 @@ public class DefaultPullConsumer implements PullConsumer {
 			return null;
 		}
 		Message message;
-		// 慢轮询, 不致饿死后面的 topic, 又可提高 page cache 命中
-		for (int index = 0; index < bucketList.size(); index++) {
+		// // 慢轮询, 不致饿死后面的 topic, 又可提高 page cache 命中
+		// for (int index = 0; index < bucketList.size(); index++) {
+		// message = messageStore.pollMessage(bucketList.get(lastIndex));
+		// if (message != null) {
+		// // System.out.println("有消息了");
+		// return message;
+		// }
+		// // 只有不命中时才 lastIndex++, 命中时(此 topic 有新 message)会下一次继续读此 topic
+		// lastIndex = (lastIndex + 1) % (bucketList.size());
+		// }
+		// 针对测试优化
+		while (lastIndex < bucketList.size()) {
 			message = messageStore.pollMessage(bucketList.get(lastIndex));
 			if (message != null) {
-				// System.out.println("有消息了");
 				return message;
 			}
 			// 只有不命中时才 lastIndex++, 命中时(此 topic 有新 message)会下一次继续读此 topic
-			lastIndex = (lastIndex + 1) % (bucketList.size());
+			lastIndex++;
 		}
-		// 针对测试优化
-//		while (lastIndex < bucketList.size()) {
-//			message = messageStore.pollMessage(bucketList.get(lastIndex));
-//			if (message != null) {
-//				return message;
-//			}
-//			// 只有不命中时才 lastIndex++, 命中时(此 topic 有新 message)会下一次继续读此 topic
-//			lastIndex++;
-//		}
 		return null;
 	}
 
@@ -84,12 +84,8 @@ public class DefaultPullConsumer implements PullConsumer {
 		buckets.addAll(topics);
 		bucketList.clear();
 		bucketList.addAll(buckets);
-		// TODO 待测试
-		// 1. do nothing
-		// 2. 排序, 提高 page cache 命中 <-- 猜测它最快
+		// 排序, 提高 page cache 命中
 		bucketList.sort(null);
-		// 3. 打乱顺序, 减少集中读一个 topic, 提高并发
-		// Collections.shuffle(bucketList);
 
 		// 最后消费 queue
 		queue = queueName;
