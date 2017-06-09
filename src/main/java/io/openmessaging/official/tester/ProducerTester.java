@@ -49,7 +49,7 @@ public class ProducerTester {
 				logger.error("please check the package name and class name:", e);
 			}
 			// init offsets
-			for (int i = 0; i < 10; i++) {
+			for (int i = 0; i < 1000; i++) {
 				offsets.put("TOPIC_" + i, 0);
 				offsets.put("QUEUE_" + i, 0);
 			}
@@ -58,33 +58,37 @@ public class ProducerTester {
 		}
 
 		@Override
-        public void run() {
-            while (true) {
-                try {
-                    String queueOrTopic;
-                    if (sendNum % 2 == 0) {
-                        queueOrTopic = "QUEUE_" + random.nextInt(10);
-                    } else {
-                        queueOrTopic = "TOPIC_" + random.nextInt(10);
-                    }
-                    queueOrTopic = "QUEUE_0";
-                    byte[] var = (label + "_" + offsets.get(queueOrTopic)).getBytes();
-                    System.arraycopy(var, 0, news, news.length - var.length, var.length);
-                    Message message = producer.createBytesMessageToQueue(queueOrTopic, news);
-                    logger.debug("queueOrTopic:{} offset:{}", queueOrTopic, label + "_" + offsets.get(queueOrTopic));
-                    offsets.put(queueOrTopic, offsets.get(queueOrTopic) + 1);
-                    producer.send(message);
-                    sendNum++;
-                    if (sendNum >= Constants.PRO_MAX) {
-                        break;
-                    }
-                } catch (Exception e) {
-                    logger.error("Error occurred in the sending process", e);
-                    break;
-                }
-            }
-            producer.flush();
-        }
+		public void run() {
+			while (true) {
+				try {
+					String queueOrTopic;
+//					if (sendNum % 6 == 0) {
+//						queueOrTopic = "QUEUE_" + random.nextInt(10);
+//					} else {
+//						queueOrTopic = "TOPIC_" + sendNum % 6 + "" + random.nextInt(10);
+//					}
+					if (sendNum % 2 == 0) {
+						queueOrTopic = "QUEUE_0";
+					} else {
+						queueOrTopic = "TOPIC_0";
+					}
+					byte[] var = (label + "_" + offsets.get(queueOrTopic)).getBytes();
+					System.arraycopy(var, 0, news, news.length - var.length, var.length);
+					Message message = producer.createBytesMessageToQueue(queueOrTopic, news);
+					logger.debug("queueOrTopic:{} offset:{}", queueOrTopic, label + "_" + offsets.get(queueOrTopic));
+					offsets.put(queueOrTopic, offsets.get(queueOrTopic) + 1);
+					producer.send(message);
+					++sendNum;
+					if (sendNum >= Constants.PRO_MAX) {
+						break;
+					}
+				} catch (Exception e) {
+					logger.error("Error occurred in the sending process", e);
+					break;
+				}
+			}
+			producer.flush();
+		}
 
 	}
 
@@ -101,7 +105,7 @@ public class ProducerTester {
 			ts[i].join();
 		}
 		long end = System.currentTimeMillis();
-		System.out.println("Produce Finished, Cost "+ (end - start));
+		System.out.println("Produce Finished, Cost " + (end - start));
 		logger.info("Produce Finished, Cost {} ms", end - start);
 	}
 }

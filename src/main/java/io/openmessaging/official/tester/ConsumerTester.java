@@ -82,15 +82,15 @@ public class ConsumerTester {
 					String body = new String(message.getBody());
 					int index = body.lastIndexOf("_");
 					String producer = body.substring(index - 10, index);
-					System.out.println(producer);
+//					System.out.println(producer);
 					int offset = Integer.parseInt(body.substring(index + 1));
-					if (offset != offsets.get(queueOrTopic).get(producer)) {
-						logger.error("Offset not equal expected:{} actual:{} producer:{} queueOrTopic:{}",
-								offsets.get(producer), offset, producer, queueOrTopic);
-						break;
-					} else {
-						offsets.get(queueOrTopic).put(producer, offset + 1);
-					}
+//					if (offset != offsets.get(queueOrTopic).get(producer)) {
+//						logger.error("Offset not equal expected:{} actual:{} producer:{} queueOrTopic:{}",
+//								offsets.get(producer), offset, producer, queueOrTopic);
+//						break;
+//					} else {
+//						offsets.get(queueOrTopic).put(producer, offset + 1);
+//					}
 					pullNum++;
 				} catch (Exception e) {
 					logger.error("Error occurred in the consuming process", e);

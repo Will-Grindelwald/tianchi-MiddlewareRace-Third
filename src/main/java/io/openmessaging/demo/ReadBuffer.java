@@ -3,6 +3,7 @@ package io.openmessaging.demo;
 import java.io.IOException;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.List;
 
 /**
  * READ ONLY MappedByteBuffer Wrapper for Consumer
@@ -10,32 +11,53 @@ import java.nio.channels.FileChannel;
 // 仅用作 Consumer 的私有属性, 且对文件只读, 不会有竞争
 public class ReadBuffer {
 
-	private String bucket = "";
-	private FileChannel mappedFileChannel;
+	private final int type; // 0 for index, 1 for log
+	private Topic topic = null;
 	private MappedByteBuffer buffer;
-	private int size;
 	private long offsetInFile; // 映射区的末尾在源文件中的 offset
+	private int size;
 
-	public ReadBuffer() {
-		// do nothing
+	public ReadBuffer(int type) {
+		this.type = type;
 	}
 
 	/**
-	 * return false when no more file content to map. that is to say:
-	 * mappedFileChannel.size() = offsetInFile
+	 * return false when no more file content to map.
 	 */
-	public boolean reMap(String bucket, FileChannel fileChannel, long offset, int size) {
-		try {
-			if (fileChannel.size() - offset < size) {
-				size = (int) (fileChannel.size() - offset);
+	public boolean reMap(Topic topic, long offset) {
+		// get FileChannel
+		int fileID = (int) (offset / Constants.FILE_SIZE);
+		List<PersistenceFile> tmpFileList = type == 0 ? topic.getIndexFileList() : topic.getLogFileList();
+		FileChannel tmpFileChannel = null;
+		for (PersistenceFile file : tmpFileList) {
+			if (file.fileID == fileID) {
+				tmpFileChannel = file.getFileChannel();
+				break;
 			}
+		}
+		if (tmpFileChannel == null) {
+			System.err.println("ERROR PersistenceFile 丢失");
+			System.err.println("offset=" + offset); /// test
+			System.err.println("fileID=" + fileID); /// test
+			new Exception().printStackTrace();
+			System.exit(0);
+		}
+		try {
+			int remain = (int) (tmpFileChannel.size() - offset % Constants.FILE_SIZE);
+			int size = remain < Constants.BUFFER_SIZE ? remain : Constants.BUFFER_SIZE;
 			if (size != 0) {
-				buffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, offset, size);
-				this.bucket = bucket;
-				mappedFileChannel = fileChannel;
+				// TODO 释放更快？待测
+				// if (buffer != null)
+				// BufferUtils.clean(buffer);
+				buffer = tmpFileChannel.map(FileChannel.MapMode.READ_ONLY, offset % Constants.FILE_SIZE, size);
 				offsetInFile = offset + size;
 				this.size = size;
+				this.topic = topic; // 最后更新它
 				return true;
+			} else {
+				// 只有在 offset 映射到最后一个文件, 且文件不足 Constants.FILE_SIZE, 且
+				// tmpFileChannel.size() = offset 时, 才会 size = 0
+				return false;
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -44,30 +66,36 @@ public class ReadBuffer {
 	}
 
 	public boolean reMap() {
-		return reMap(bucket, mappedFileChannel, offsetInFile, size);
+		return reMap(topic, offsetInFile);
 	}
 
-	public boolean reMap(long offset, int size) {
-		return reMap(bucket, mappedFileChannel, offset, size);
+	public boolean reMap(long offset) {
+		return reMap(topic, offset);
 	}
 
 	/**
 	 * @return null when no more new record
 	 */
-	public byte[] read(String bucket, FileChannel fileChannel, long offset, int length) {
+	public byte[] read(Topic topic, long offset, int length) {
 		// readIndexFileBuffer 缓存不命中
-		if (!bucket.equals(this.bucket)) { // 1. 不是同一个文件
-			if (!reMap(bucket, fileChannel, offset, Constants.BUFFER_SIZE))
+		if (this.topic != topic) {
+			// 1. 不是同一个 topic
+			if (!reMap(topic, offset))
 				return null; // no more to map == no more new record
 			// buffer.load(); // TODO 测试 load 与 不 load 谁快
-		} else if (offset >= offsetInFile) { // 2. 超出映射范围 // TODO 边界用 >= ? 待测
-			if (!reMap(offset, Constants.BUFFER_SIZE))
+		} else if (offset >= offsetInFile || offset < offsetInFile - size) {
+			// 2. 超出映射范围
+			if (!reMap(offset))
 				return null; // no more to map == no more new record
 			// buffer.load();
 		}
+		if (type == 0) {
+			if (offset >= topic.getNextIndexOffset())
+				return null;
+		}
 
 		byte[] result = new byte[length];
-		if (length > offsetInFile - offset) { // 读两段 // TODO 边界用 >= ? 待测
+		if (length > offsetInFile - offset) { // 读两段
 			int size1 = (int) (offsetInFile - offset);
 			buffer.get(result, 0, size1);
 			if (!reMap())
