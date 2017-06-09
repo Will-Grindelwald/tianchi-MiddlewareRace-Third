@@ -1,7 +1,7 @@
 package io.openmessaging.demo;
 
 import java.io.File;
-import java.nio.channels.FileChannel;
+import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 // 一个 buchet 一个, 全局唯一, 小心并发
@@ -12,15 +12,14 @@ public class Topic {
 
 	// Last file
 	private final LastFile lastFile;
-	private boolean close = false; // close flag for lastFile
 
 	// IndexFile
 	private final CopyOnWriteArrayList<PersistenceFile> indexFileList = new CopyOnWriteArrayList<>();
-	private WriteBuffer writeIndexFileBuffer;
+	private final WriteBuffer3 writeIndexFileBuffer;
 
 	// LogFiles
 	private final CopyOnWriteArrayList<PersistenceFile> logFileList = new CopyOnWriteArrayList<>();
-	private WriteBuffer writeLogFileBuffer;
+	private final WriteBuffer3 writeLogFileBuffer;
 
 	public Topic(String bucket) {
 		this.bucket = bucket;
@@ -35,7 +34,7 @@ public class Topic {
 		}
 		// Last file
 		lastFile = new LastFile(path);
-		// indexFile
+		// indexFile 及其 WriteBuffer
 		int tmpFileID;
 		for (String indexFile : file.list((dir, name) -> name.startsWith(Constants.INDEX_FILE_PREFIX))) {
 			try {
@@ -49,8 +48,9 @@ public class Topic {
 		if (indexFileList.isEmpty()) {
 			indexFileList.add(new PersistenceFile(path, 0, Constants.INDEX_FILE_PREFIX));
 		}
-		writeIndexFileBuffer = new WriteBuffer(Constants.INDEX_FILE_PREFIX, indexFileList, lastFile.nextIndexOffset, 0);
-		// LogFiles
+		writeIndexFileBuffer = new WriteBuffer3(Constants.INDEX_FILE_PREFIX, indexFileList,
+				lastFile.getNextIndexOffset());
+		// LogFiles 及其 WriteBuffer
 		for (String indexFile : file.list((dir, name) -> name.startsWith(Constants.LOG_FILE_PREFIX))) {
 			try {
 				tmpFileID = Integer.valueOf(indexFile.substring(Constants.LOG_FILE_PREFIX.length()));
@@ -63,83 +63,39 @@ public class Topic {
 		if (logFileList.isEmpty()) {
 			logFileList.add(new PersistenceFile(path, 0, Constants.LOG_FILE_PREFIX));
 		}
-		writeLogFileBuffer = new WriteBuffer(Constants.LOG_FILE_PREFIX, logFileList, lastFile.nextMessageOffset,
-				Constants.BUFFER_SIZE);
+		writeLogFileBuffer = new WriteBuffer3(Constants.LOG_FILE_PREFIX, logFileList, lastFile.getNextMessageOffset());
 	}
 
-	// for Producer
-	public void putMessageToQueue(byte[] byteMessage) {
-		try {
-			long newOffset = appendIndex(byteMessage.length);
-			long lastByteOffset = newOffset + byteMessage.length - 1;
-			// 跨 buffer 的, 分为两个放入 Queue
-			if (newOffset / Constants.BUFFER_SIZE != lastByteOffset / Constants.BUFFER_SIZE) {
-				int size1 = (int) (Constants.BUFFER_SIZE - newOffset % Constants.BUFFER_SIZE);
-				byte[] part1 = new byte[size1], part2 = new byte[byteMessage.length - size1];
-				System.arraycopy(byteMessage, 0, part1, 0, size1);
-				System.arraycopy(byteMessage, size1, part2, 0, part2.length);
-				GlobalResource.putWriteTask(new WriteTask(part1, bucket, newOffset));
-				GlobalResource.putWriteTask(new WriteTask(part2, bucket, newOffset + size1));
-			} else {
-				GlobalResource.putWriteTask(new WriteTask(byteMessage, bucket, newOffset));
-			}
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-	}
-
-	// for Producer
+	// for Producer, 由 send -> putMessage 单线程调用
 	public long appendIndex(int size) throws InterruptedException {
-		long newOffset = lastFile.nextMessageOffset;
-		Index.setOffset(lastFile.lastIndexByte, lastFile.nextMessageOffset);
-		Index.setSize(lastFile.lastIndexByte, size);
-		lastFile.nextIndexOffset += writeIndexFileBuffer.write(lastFile.lastIndexByte);
-		lastFile.nextMessageOffset += size;
-		if (close) {
-			lastFile.flush();
-		}
-		return newOffset;
+		return lastFile.updateAndAppendIndex(size, writeIndexFileBuffer);
 	}
 
-	// for WriteMessageService
-	public void appendMessageBytes(byte[] bytes, long offset) throws InterruptedException {
-		writeLogFileBuffer.write(bytes, offset);
+	public WriteBuffer3 getWriteIndexFileBuffer() {
+		return writeIndexFileBuffer;
+	}
+
+	public WriteBuffer3 getWriteLogFileBuffer() {
+		return writeLogFileBuffer;
 	}
 
 	// for Consumer
-	public FileChannel getIndexFileChannelByOffset(long offset) {
-		int fileID = (int) (offset % Constants.FILE_SIZE);
-		for (PersistenceFile indexFile : indexFileList) {
-			if (indexFile.fileID == fileID)
-				return indexFile.getFileChannel();
-		}
-		// twins for ...
-		for (PersistenceFile indexFile : indexFileList) {
-			if (indexFile.fileID == fileID)
-				return indexFile.getFileChannel();
-		}
-		return null; // 文件丢失??
+	public List<PersistenceFile> getIndexFileList() {
+		return indexFileList;
 	}
 
 	// for Consumer
-	public FileChannel getLogFileChannelByOffset(long offset) {
-		int fileID = (int) (offset % Constants.FILE_SIZE);
-		for (PersistenceFile indexFile : indexFileList) {
-			if (indexFile.fileID == fileID)
-				return indexFile.getFileChannel();
-		}
-		// twins for ...
-		for (PersistenceFile indexFile : indexFileList) {
-			if (indexFile.fileID == fileID)
-				return indexFile.getFileChannel();
-		}
-		return null; // 文件丢失??
+	public List<PersistenceFile> getLogFileList() {
+		return logFileList;
+	}
+
+	public long getNextIndexOffset() {
+		return lastFile.getNextIndexOffset();
 	}
 
 	// for Producer
 	public void flush() throws InterruptedException {
 		// 1. update lastIndex
-		close = true;
 		lastFile.flush();
 		// 2. flush writeIndexFileBuffer
 		writeIndexFileBuffer.flush();

@@ -2,12 +2,12 @@ package io.openmessaging.demo;
 
 public class WriteTask {
 	public final byte[] messageBytes;
-	public final String bucket;
+	public final WriteBuffer3 WriteBuffer;
 	public final long offset;
 
-	public WriteTask(byte[] messageBytes, String bucket, long offset) {
+	public WriteTask(byte[] messageBytes, WriteBuffer3 WriteBuffer, long offset) {
 		this.messageBytes = messageBytes;
-		this.bucket = bucket;
+		this.WriteBuffer = WriteBuffer;
 		this.offset = offset;
 	}
 }
