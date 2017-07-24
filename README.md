@@ -1,8 +1,8 @@
 # README
 
-本仓库记录了我于 2017 年 5 月 18 日参加[阿里中间件性能挑战赛](https://tianchi.aliyun.com/competition/introduction.htm?spm=5176.100068.5678.1.GKQHrY&raceId=231600)的代码、思考、分享。
+本仓库记录了我于 2017 年 5 月 18 日参加 [阿里中间件性能挑战赛](https://tianchi.aliyun.com/competition/introduction.htm?spm=5176.100068.5678.1.GKQHrY&raceId=231600) 的代码、思考、分享。
 
-原代码是存储在 https://code.aliyun.com/526201447/tianchi_MiddlewareRace/ 上，不太方便，遂迁移到 Github。同时我还整理了一下提交记录：在原提交记录不变的基础上，我将我们的代码演化分为了 5 个阶段，先 merge 到 dev-0 分支，再 merge 到 master 分支并打上 tag。
+原代码是存储在 [阿里云](https://code.aliyun.com/526201447/tianchi_MiddlewareRace/) 上，不太方便，遂迁移到 Github。同时我还整理了一下提交记录：在原提交记录不变的基础上，我将我们的代码演化分为了 5 个阶段，先 merge 到 dev-0 分支，再 merge 到 master 分支并打上 tag。
 
 ```sh
 *   64a5d64 Merge branch 'dev-0' for Version 5
@@ -28,7 +28,7 @@
 * |   40481c0 Merge branch 'dev-0' for Version 2.1                ·
 |\|                                                               ·
 | *   6a78304 Merge branch 'v2' into dev-0 for v2.1               ·
-| |\_____________________________________________________________ *    0d650f0 refactor
+| |\_____________________________________________________________ *   0d650f0 refactor
 | |                                                               ·
 * |   61dce56 Merge branch 'dev-0' for Version 1                  ·
 |\|                                                               ·
@@ -41,8 +41,8 @@
 
 PS：
 
-* Open-Messaging 框架代码(已集成到本项目)：https://code.aliyun.com/middlewarerace2017/open-messaging-demo [备份](back/)
-* 官方提供的测试程序样例(已集成到本项目)：https://code.aliyun.com/middlewarerace2017/openmessagingdemotester [备份](back/)
+* Open-Messaging 框架代码(已集成到本项目)：https://code.aliyun.com/middlewarerace2017/open-messaging-demo [**[备份]**](https://github.com/Will-Grindelwald/tianchi_MiddlewareRace_Third/tree/master/back/)
+* 官方提供的测试程序样例(已集成到本项目)：https://code.aliyun.com/middlewarerace2017/openmessagingdemotester [**[备份]**](https://github.com/Will-Grindelwald/tianchi_MiddlewareRace_Third/tree/master/back/)
 * 阿里的 RocketMQ(Open-Messaging 规范的来源)：https://github.com/apache/incubator-rocketmq
 
 ## 成绩
