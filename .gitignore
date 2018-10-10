@@ -1,6 +1,10 @@
+.vscode
+.DS_Store
 .idea
-target
 *.iml
+target
 .settings
 .classpath
 .project
+build
+WebContent
